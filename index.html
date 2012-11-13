@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<title>John Kimble Feedback</title>
+<style>
+body {
+	background: #777788;
+}
+table, tr, td {
+	padding: 0;
+	border-spacing: 0;
+	border: 0 none;
+	border-collapse: collapse;
+	empty-cells: show;
+}
+tr {
+	vertical-align: baseline;
+}
+input, button, .feedback_container, .feedbutton {
+	font-family: sans-serif;
+	font-weight: bold;
+}
+.feedbutton {
+	border: none;
+	padding: 0;
+	margin: 0;
+	background: none;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.feedback_container {
+	width: 16em;
+	margin: 0 auto;
+	position: relative;
+}
+.feedback_wrapper {
+	overflow: hidden;
+}
+.feedback_wrapper, .feedback, .feedback_hover {
+	border-radius: 10px;
+}
+.feedback {
+	text-align: center;
+	background: #ccc9bc;
+	border: 0 none;
+	box-shadow: 0 -2px 4px #000000 inset, 0 1px 2px #000000 inset;
+	color: #777777;
+}
+.feedback_hover {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+.feedback_active .feedback_hover:hover {
+	background-color: #ffffff;
+	opacity: 0.2;
+}
+.feedback_text {
+	padding: 0.4em 0.5em 0.3em;
+}
+#feedback_title {
+	background: #d2b89c;
+	text-shadow: none;
+	text-transform: uppercase;
+	color: black;
+}
+#feedback_cancel .feedbutton {
+	font-weight: lighter;
+}
+.feedback_active#feedback_cancel .feedbutton {
+	color: #666666;
+}
+.feedback_active#feedback_ok .feedbutton {
+	color: #38b600;
+}
+.feedback_active#feedback_stop .feedbutton {
+	color: #bb1010;
+}
+.feedback_active#feedback_ask .feedbutton {
+	color: #80a7cd;
+}
+#feedback_ask_q, #feedback_ask_ask {
+	font-size: 110%;
+	border-radius: 5px;
+}
+#feedback_ask_q {
+	background-color: #f0f4ff;
+	border: 1px solid #7fc1ff;
+}
+#feedback_ask_ask {
+	background: #acc8e3;
+	border: 1px solid #346da3;
+	box-shadow: 0 -1px 2px #c8e4ff inset;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+</style>
+<script>
+feedback_url = null;
+</script>
+</head><body>
+
+<div class="feedback_container"><div class="feedback_wrapper">
+<div class="feedback" id="feedback_title"><div class="feedback_text">John Kimble Feedback</div></div>
+</div></div>
+
+<div id="feedback_recaptcha_container" style="margin-top:0.6em;display:none">
+  <form method="post" accept-charset="UTF-8"><div><table style="margin:0 auto"><tbody><tr><td>
+    <div id="feedback_recaptcha_div"></div>
+  </td></tr></tbody></table></div>
+  <div class="feedback_container" style="margin-top:0.8em">
+    <div class="feedback_wrapper">
+      <div class="feedback feedback_active" id="feedback_recaptcha" style="background:#ded4c3">
+        <div class="feedback_hover"></div>
+        <div id="feedback_recaptcha_text"><div class="feedback_text"><button type="submit" class="feedbutton" style="font-size:200%">SIGN IN</button></div></div>
+      </div>
+    </div>
+  </div></form>
+</div>
+
+<div id="feedback_authorized">
+<div id="feedback_stop_container" class="feedback_container" style="margin-top:0.6em">
+<div class="feedback_wrapper">
+  <div class="feedback" id="feedback_stop">
+    <div class="feedback_hover"></div>
+    <div id="feedback_stop_text"><div class="feedback_text"><button type="button" class="feedbutton" style="font-size:200%">STOP</button></div></div>
+  </div>
+</div></div>
+
+<div class="feedback_container" style="margin-top:0.3em">
+<div class="feedback_wrapper">
+  <div class="feedback" id="feedback_ok">
+    <div class="feedback_hover"></div>
+    <div class="feedback_text"><button type="button" class="feedbutton" style="font-size:200%">GO</button></div>
+  </div>
+</div></div>
+
+<div id="feedback_ask_container" class="feedback_container" style="margin-top:0.3em">
+<div class="feedback_wrapper">
+  <div class="feedback" id="feedback_ask" style="display:none">
+    <div class="feedback_hover"></div>
+    <div id="feedback_ask_entry" style="display:none;position:absolute;z-index:2;top:0;left:0;right:0;bottom:0;padding-left:1em">
+      <form style="width:100%;height:100%">
+      <table style="width:100%;height:100%;font-size:120%"><tbody><tr style="vertical-align:middle">
+	<td><input id="feedback_ask_q" type="text" style="width:100%" /></td>
+	<td><button id="feedback_ask_ask" type="submit" style="font-weight:bold">?</button></td>
+      </tr></tbody></table>
+    </form></div>
+    <div class="feedback_text"><button type="button" class="feedbutton" style="font-size:200%">ASK</button></div>
+  </div>
+</div></div>
+
+<div class="feedback_container" style="margin-top:0.3em"><div class="feedback_wrapper">
+  <div class="feedback" id="feedback_cancel">
+    <div class="feedback_hover"></div>
+    <div class="feedback_text"><button type="button" class="feedbutton" style="font-size:150%">CANCEL</button></div>
+  </div>
+</div></div>
+</div>
+
+<script type="text/javascript" src="jquery-1.8.2.min.js"></script>
+<script type="text/javascript" src="jquery.color-2.1.0.min.js"></script>
+<script type="text/javascript" src="feedback.js"></script>
+</body>
+</html>
