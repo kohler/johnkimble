@@ -16,27 +16,29 @@ var server_config = {
 };
 var default_course_config = {
     title: null,
+    feedback_title: null,
+    board_title: null,
     capacity: 1000,
     overload_capacity: 300,
     guarantee: 30000,
     lease: 180000,
-    timeout: 7200000,
-    emphasis_timeout: 10000,
-    hold_duration: 30000,
+    timeout: 720000,
     duration: 180000,
+    hold_duration: 30000,
+    emphasis_duration: 10000,
     gc_interval: 7200000,
     poll_timeout: 30000,
     poll_capacity: 300,
-    question_capacity: 300,
+    question: true,
+    question_capacity: 1000,
     question_guarantee: 30000,
     question_timeout: 300000,
     require_post: true,
     auth: false,
-    auth_method: null,
-    debug: false,
-    ask: true,
+    auth_method: "recaptcha",
     jsontext: true,
-    feedbacks: {"ok": "ok", "stop": "stop"}
+    debug: false,
+    phantom_feedback_types: [0, "ok", "stop"]
 };
 var course_config = {
 };
@@ -49,7 +51,7 @@ if (!server_config.hmac_key)
 
 var courses = {
     _size: 0
-    // COURSENAME: { size: NSTUDENTS, polls: {...}, feedbacktypes: [],
+    // COURSENAME: { size: NSTUDENTS, polls: {...},
     //     s: { SCOOKIE: {
     //         id: SCOOKIE, ordinal: ordinal,
     //         at: timestamp, feedback: type,
@@ -215,16 +217,6 @@ function Course(name) {
     if (!(this.auth_method == "recaptcha" && this.auth
 	  && this.recaptcha_public && this.recaptcha_private))
 	this.auth = this.auth_method = false;
-
-    this.feedbacktypes = [0];
-    f = {0: true};
-    for (i in this.feedbacks) {
-	i = this.feedbacks[i];
-	if (!f[i]) {
-	    this.feedbacktypes.push(i);
-	    f[i] = true;
-	}
-    }
 }
 
 
@@ -380,8 +372,9 @@ Course.prototype.gc = function(now, need) {
 
 // Authentication
 
-Course.prototype.need_auth = function(action, auth_at) {
-    return (!auth_at
+Course.prototype.need_auth = function(action, auth_at, now) {
+    return ((!auth_at
+	     || (this.auth_timeout && auth_at < now - this.auth_timeout))
 	    && (this.auth === true
 		|| (action != "login" && this.auth == "feedback")
 		|| (this.size > this.overload_capacity && this.auth == "overload")));
@@ -479,9 +472,9 @@ Course.prototype.status = function(s, u, req, res, extra) {
     var duration = this.duration, j = {
 	hold_duration: this.hold_duration,
 	duration: duration,
-	emphasis_timeout: this.emphasis_timeout,
+	emphasis_duration: this.emphasis_duration,
 	lease: this.lease,
-	ask: this.question_capacity > 0 && this.ask,
+	ask: this.question_capacity > 0 && this.question,
 	now: u.now,
 	size: this.size
     };
@@ -548,7 +541,7 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	updated_at: this.updated_at,
 	hold_duration: this.hold_duration,
 	duration: this.duration,
-	emphasis_timeout: this.emphasis_timeout,
+	emphasis_duration: this.emphasis_duration,
 	size: this.size,
 	nordinal: this.os.length,
 	s: {},
@@ -568,7 +561,7 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	    j.nfeedback[0] = (j.nfeedback[0] || 0) + 1;
 	}
     }
-    if (this.qs.length && this.ask) {
+    if (this.qs.length && this.question) {
 	var qs = this.qs;
 	for (i = qs.length; i > 0 && qs[i-1][1] > poll_at; --i)
 	    /* do nothing */;
@@ -581,10 +574,11 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
     return json_response(u, req, res, j);
 };
 
-Course.prototype.feedback = function(s, feedback, now) {
-    var f = this.feedbacks[feedback] || 0;
+Course.prototype.feedback = function(s, f, now) {
+    if (f == "" || f == "cancel" || f == "0")
+	f = 0;
     if (f && s.feedback == f)
-	s.emphasis = 1 + s.emphasis * (1 - Math.min(1, (now - s.feedback_at) / this.emphasis_timeout));
+	s.emphasis = 1 + s.emphasis * (1 - Math.min(1, (now - s.feedback_at) / this.emphasis_duration));
     else
 	s.emphasis = f ? 1 : 0;
     s.feedback = f;
@@ -672,8 +666,8 @@ Course.prototype.add_phantom = function(now) {
 	    return;
 	self.activate(s, now);
 	if (Math.random() < changeability) {
-	    f = self.feedbacktypes[Math.floor(Math.random() * self.feedbacktypes.length)];
-	    self.feedback(s, f, now);
+	    f = self.phantom_feedback_types;
+	    self.feedback(s, f[Math.floor(Math.random() * f.length)], now);
 	}
 	if (self.update)
 	    self.finish_update(now);
@@ -749,7 +743,7 @@ function server_actions(course, u, req, res) {
     // generate new cookie
     if (!u.cookie) {
 	u.cookie = course.set_cookie({id: next_id()}, req, res);
-	if (course.need_auth(u.action, false))
+	if (course.need_auth(u.action, false, u.now))
 	    return course.auth_json_response(u, req, res);
 	else
 	    return json_response(u, req, res, {retry: true});
@@ -783,7 +777,7 @@ function server_actions(course, u, req, res) {
 
     // check authorization
     s = course.s[u.cookie.id];
-    if (course.need_auth(u.action, s && s.auth_at))
+    if (course.need_auth(u.action, s && s.auth_at, u.now))
 	return course.auth_json_response(u, req, res);
 
     // require POST
@@ -805,7 +799,7 @@ function server_actions(course, u, req, res) {
 	return json_response(u, req, res, {error: "missing feedback"});
 
     // ask questions
-    if (u.action == "ask" && course.ask && course.question_capacity)
+    if (u.action == "ask" && course.question && course.question_capacity)
 	return course.ask_request(s, u, req, res);
     else if (u.action == "ask")
 	return json_response(u, req, res, {error: "questions disabled"});

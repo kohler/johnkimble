@@ -339,7 +339,7 @@ function draw_board(from_timeout) {
     var now = (new Date).getTime() + clock_offset,
 	duration = boardstatus.duration,
 	hold_duration = boardstatus.hold_duration,
-	emphasis_timeout = boardstatus.emphasis_timeout;
+	emphasis_duration = boardstatus.emphasis_duration;
     var t_start, t_pulse, t_emphasis, t_hold, t_end;
 
     // drawing constants
@@ -370,9 +370,9 @@ function draw_board(from_timeout) {
 	if (f == "0" || now >= t_end)
 	    r = smallrad;
 	else {
-	    if (s.emphasis > 1 && now < t_start + emphasis_timeout) {
+	    if (s.emphasis > 1 && now < t_start + emphasis_duration) {
 		r = Math.min(maxrad, Math.sqrt(largerad * largerad * (s.emphasis + 1) / 2));
-		r += swing((now - t_start) / emphasis_timeout) * (largerad - r);
+		r += swing((now - t_start) / emphasis_duration) * (largerad - r);
 		board_animator.update_at(now);
 	    } else
 		r = largerad;
