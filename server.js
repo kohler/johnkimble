@@ -476,9 +476,9 @@ Course.prototype.handle_auth = function(u, req, res) {
 // status result
 
 Course.prototype.status = function(s, u, req, res, extra) {
-    var j = {
+    var duration = this.duration, j = {
 	hold_duration: this.hold_duration,
-	duration: this.duration,
+	duration: duration,
 	emphasis_timeout: this.emphasis_timeout,
 	lease: this.lease,
 	ask: this.question_capacity > 0 && this.ask,
@@ -491,6 +491,8 @@ Course.prototype.status = function(s, u, req, res, extra) {
 	j.feedback = s.feedback;
 	j.emphasis = s.emphasis;
 	j.feedback_at = s.feedback_at;
+	if (s.q_at && u.now - s.q_at <= duration)
+	    j.question_at = s.q_at;
     }
     for (var i in extra || {})
 	j[i] = extra[i];
@@ -587,6 +589,10 @@ Course.prototype.feedback = function(s, feedback, now) {
 	s.emphasis = f ? 1 : 0;
     s.feedback = f;
     s.at = s.feedback_at = now;
+    if (s.q_at && now - s.q_at <= this.duration && !f) {
+	delete s.q_at;
+	this.qs.push([s.id, Math.max(this.updated_at + 1, now), ""]);
+    }
     this.update = true;
 };
 
@@ -622,7 +628,7 @@ Course.prototype.ask_question = function(s, question, now) {
     if (qs.length == this.question_capacity)
 	gc_questions(qs, now - this.question_timeout);
     qs.push([s.id, Math.max(this.updated_at + 1, now), question]);
-    s.at = now;
+    s.at = s.q_at = now;
     this.update = true;
 };
 

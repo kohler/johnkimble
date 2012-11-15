@@ -5,9 +5,10 @@ feedback_url = window.feedback_url || "";
 var status = {};
 var feedback_asking = false;
 var clock_offset = 0;
-var statuses = {"0": "cancel", ok: "ok", stop: "stop"};
+var statuses = {"0": "cancel", ok: "ok", stop: "stop", ask: "ask"};
 var pulse_duration = 150;
-var boardstatus = {}, boardsizes = {}, boardbackoff = 0, boardqs = {}, boardinfo = {};
+var boardstatus = {}, boardsizes = {}, boardbackoff = 0,
+    boardqs = {}, boardinfo = {}, boardcolorre = null;
 var compact_window = !!window.location.search.match(/[?&]neww=1/);
 var colors = {
     pulse: $.Color("#ffff00"),
@@ -76,13 +77,13 @@ function colorat(now, animator /* ... */) {
 }
 
 function draw_status(from_timeout) {
-    var now = (new Date).getTime() + clock_offset, s, e;
+    var now = (new Date).getTime() + clock_offset, s, e, active;
     status_animator = status_animator || new_animator(draw_status);
     status_animator.clear(now, from_timeout);
     for (s in statuses) {
 	e = $("#feedback_" + statuses[s]);
-	if (status.feedback == s) {
-	    var t_start = status.feedback_at,
+	if (s == "ask" ? status.question_at : status.feedback == s) {
+	    var t_start = status[s == "ask" ? "question_at" : "feedback_at"],
 	        t_pulse = t_start + pulse_duration,
 	        t_hold = t_start + status.hold_duration,
 	        t_end = t_start + status.duration;
@@ -97,11 +98,8 @@ function draw_status(from_timeout) {
 	else
 	    e.css("backgroundColor", "");
     }
-    e = $("#feedback_ask");
-    if (!status.lease)
-	e.css("backgroundColor", "");
-    else
-	e.css("backgroundColor", colors.ask.off).toggle(status.ask);
+    if (status.lease)
+	$("#feedback_ask").toggle(status.ask);
     status_animator.go();
 }
 
@@ -225,7 +223,7 @@ function set_status(data) {
 
 function feedback(type) {
     if (feedback_asking) {
-	feedback_ask_cancel(0);
+	feedback_ask_done(null);
 	if (type == "cancel")
 	    return;
     }
@@ -247,27 +245,30 @@ function feedback_ask() {
     feedback_asking = true;
 }
 
-function feedback_ask_cancel(clear) {
-    $("#feedback_ask_entry").stop(true).fadeOut(250);
-    $("#feedback_ask .feedback_text").stop(true).fadeIn(250);
-    if (clear)
-	$("#feedback_ask_q").val("");
-    $("#feedback_ask").focus();
-    var e = $("#feedback_stop_container");
-    $("#feedback_ask_container").animate({width: e.width(), height: e.height()}, {duration:250});
-    feedback_asking = false;
-}
-
 function feedback_ask_ask() {
     var s;
     if ((s = $("#feedback_ask_q").val()))
 	$.ajax({
 	    url: feedback_url + "ask", data: {q: s},
 	    type: "POST", dataType: "json", timeout: 3000,
-	    success: make_responder(feedback_ask_ask, [feedback_ask_cancel, 1]),
-	    error: function () { feedback_ask_cancel(); manage_lease(); },
+	    success: make_responder(feedback_ask_ask, feedback_ask_done),
+	    error: function () { feedback_ask_done(null); manage_lease(); },
 	    xhrFields: {withCredentials: true}
 	});
+}
+
+function feedback_ask_done(data) {
+    $("#feedback_ask_entry, #feedback_ask .feedback_text, #feedback_ask_container").stop(true, true);
+    $("#feedback_ask_entry").fadeOut(250);
+    $("#feedback_ask .feedback_text").fadeIn(250);
+    if (data === null)
+	$("#feedback_ask_q").val("");
+    $("#feedback_ask").focus();
+    var e = $("#feedback_stop_container");
+    $("#feedback_ask_container").animate({width: e.width(), height: e.height()}, {duration:250});
+    feedback_asking = false;
+    if (data !== null)
+	set_status(data);
 }
 
 
@@ -310,6 +311,8 @@ function store_board(data) {
 
 function draw_board(from_timeout) {
     var e = $("#feedbackboard"), cv = e[0];
+    if (!boardcolorre)
+	boardcolorre = new RegExp("(?:aqua|black|blue|fuchsia|gray|grey|green|lime|maroon|navy|olive|purple|red|silver|teal|white|yellow|#[0-9a-f]{3}|#[0-9a-f]{6})", "i");
 
     // canvas-dependent sizes
     var cellsize = 30, xborder = 10, yborder = 10;
@@ -358,8 +361,7 @@ function draw_board(from_timeout) {
 	s = boardstatus.s[i];
 	f = s.feedback || "0";
 	t_start = s.feedback_at || 0;
-	if ((sqs = boardqs[i]) && f == "0" && sqs[0][0] > t_start
-	    && sqs[0][0] > now - duration) {
+	if ((sqs = boardqs[i]) && sqs[0][0] > t_start && sqs[0][1]) {
 	    t_start = sqs[0][0];
 	    f = "ask";
 	}
@@ -424,8 +426,7 @@ function draw_board(from_timeout) {
 	s = boardstatus.s[i];
 	f = s.feedback || "0";
 	t_start = s.feedback_at || 0;
-	if ((sqs = boardqs[i]) && f == "0" && sqs[0][0] > t_start
-	    && sqs[0][0] > now - duration) {
+	if ((sqs = boardqs[i]) && sqs[0][0] > t_start && sqs[0][1]) {
 	    t_start = sqs[0][0];
 	    f = "ask";
 	}
@@ -437,17 +438,22 @@ function draw_board(from_timeout) {
 	    fill = colors.board0.off;
 	} else {
 	    t_hold = t_start + hold_duration;
-	    if (now <= t_hold) {
+	    fill = colors[f].on;
+	    stroke = colors[f].onborder;
+	    if (f == "ask" && boardcolorre.test(sqs[0][1])) {
+		fill = new $.Color(sqs[0][1]);
+		stroke = fill.lightness("-=0.15");
+	    }
+	    if (now <= t_hold)
 		ctx.lineWidth = 3;
-		stroke = colors[f].onborder;
-	    } else {
+	    else {
 		x = swing((now - t_hold) / (t_end - t_hold));
 		ctx.lineWidth = 3 - 2.5 * x;
-		stroke = colors[f].onborder.transition(colors.board0.offborder, x);
+		stroke = stroke.transition(colors.board0.offborder, x);
 	    }
 	    fill = colorat(now, board_animator,
-			   t_start, colors[f].on,
-			   t_hold, colors[f].on,
+			   t_start, fill,
+			   t_hold, fill,
 			   t_end, colors.board0.off);
 	}
 
@@ -465,7 +471,7 @@ function draw_board(from_timeout) {
 	ctx.strokeStyle = stroke.toRgbaString();
 	ctx.stroke();
 
-	if (sqs && sqs[0][0] > now - duration && f != "ask") {
+	if (sqs && sqs[0][0] > now - duration && sqs[0][1] && f != "ask") {
 	    ctx.beginPath();
 	    ctx.arc(x, y, boardsizes[i].r / 2, 0, 7);
 	    ctx.fillStyle = colors.ask.inset.toRgbaString();
@@ -520,8 +526,9 @@ function hover_board_status(x, y) {
 }
 
 function hover_board(e) {
-    var b = $("#feedbackboard"), p = b.offset(), bw = b.width(), bh = b.height(),
-	x = e.pageX - p.left, y = e.pageY - p.top, t, b, body, i,
+    var b = $("#feedbackboard"), p = b.offset(),
+        bw = b.width(), bh = b.height(),
+        x = e.pageX - p.left, y = e.pageY - p.top, t, b, body, i, j,
 	hs = hover_board_status(x, y);
     if ((!hs && !boardinfo.hovers)
 	|| (hs && boardinfo.hovers && hs[0] == boardinfo.hovers[0]
@@ -545,8 +552,11 @@ function hover_board(e) {
 	t = $(t + "px'></div>");
 
 	b = boardqs[hs[0]];
-	for (i = 0; i < 3 && i < b.length; ++i)
-	    t.append($("<div></div>").text(b[i][1]));
+	for (i = j = 0; j < 3 && i < b.length; ++i)
+	    if (b[i][1]) {
+		t.append($("<div></div>").text(b[i][1]));
+		++j;
+	    }
 	t.appendTo($("body"));
 
 	boardinfo.hovers = hs;
