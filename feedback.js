@@ -58,7 +58,7 @@ var board_animator = null, status_animator = null;
 
 function make_easing(start) {
     return function (p) {
-	return jQuery.easing.swing(start + p * (1 - start));
+	return $.easing.swing(start + p * (1 - start));
     };
 }
 
@@ -72,7 +72,7 @@ function colorat(now, animator /* ... */) {
     } else {
 	animator.update_at(now);
 	return arguments[i + 1].transition(arguments[i + 3],
-					   jQuery.easing.swing((now - arguments[i]) / (arguments[i + 2] - arguments[i])));
+					   $.easing.swing((now - arguments[i]) / (arguments[i + 2] - arguments[i])));
     }
 }
 
@@ -309,10 +309,86 @@ function store_board(data) {
     getboard();
 }
 
+var feedback_shapes = (function () {
+    var square_R = Math.sqrt(Math.PI / 2);
+    var square_start = Math.PI / 4;
+    var octagon_R = Math.sqrt(Math.PI / (4 * Math.SQRT1_2));
+    var octagon_start = Math.PI / 8;
+    var star_start = Math.PI / 2;
+
+    function polygonal_path(ctx, x, y, r, start, n) {
+	var i, a, d = Math.PI * 2 / n;
+	for (i = 0; i < n; ++i) {
+	    a = start + i * d;
+	    ctx[i ? "lineTo" : "moveTo"](x + r * Math.cos(a),
+					 y + r * Math.sin(a));
+	}
+	ctx.closePath();
+    }
+
+    return {
+	circle: null,
+	square: function (ctx, x, y, r) {
+	    polygonal_path(ctx, x, y, square_R * r, square_start, 4);
+	},
+	diamond: function (ctx, x, y, r) {
+	    polygonal_path(ctx, x, y, square_R * r, 0, 4);
+	},
+	octagon: function (ctx, x, y, r) {
+	    polygonal_path(ctx, x, y, octagon_R * r, octagon_start, 8);
+	},
+	star: function (ctx, x, y, r) {
+	    var i, a, d = Math.PI * 2 / 10, rr;
+	    for (i = 0; i < 10; ++i) {
+		a = star_start + i * d;
+		rr = r * ([1.2, 0.6])[i & 1];
+		ctx[i ? "lineTo" : "moveTo"](x + rr * Math.cos(a),
+					     y - rr * Math.sin(a));
+	    }
+	    ctx.closePath();
+	}
+    };
+})();
+
+function feedback_style(sq, f, feedback_at, cutoff) {
+    var m, a, b, i, shape, style = [];
+
+    if (sq && sq[0] >= (cutoff || 0) && sq[1].charAt(0) == "{"
+	&& (m = sq[1].match(/^\{(.*?)\}(.*)$/))) {
+	if (!boardcolorre)
+	    boardcolorre = new RegExp("(?:aqua|black|blue|fuchsia|gray|grey|green|lime|maroon|navy|olive|purple|red|silver|teal|white|yellow|#[0-9a-f]{3}|#[0-9a-f]{6})", "i");
+
+	a = m[1].split(/[\s,]+/);
+	b = [];
+
+	for (i = 0; i < a.length; ++i)
+	    if (boardcolorre.test(a[i])) {
+		if (sq[0] >= (feedback_at || 0)) {
+		    style[0] = new $.Color(a[i]);
+		    style[1] = style[0].transition($.Color("black"), 0.2);
+		}
+	    } else if (a[i] in feedback_shapes)
+		style[2] = feedback_shapes[a[i]];
+	    else
+		b.push(a[i]);
+
+	if (b.length)
+	    style[3] = "{" + b.join(" ") + "}" + m[2];
+	else
+	    style[3] = m[2];
+    } else if (sq)
+	style[3] = sq[1];
+
+    f = f || "0";
+    if (!style[0])
+	style[0] = colors[f].on;
+    if (!style[1])
+	style[1] = colors[f].onborder;
+    return style;
+}
+
 function draw_board(from_timeout) {
     var e = $("#feedbackboard"), cv = e[0];
-    if (!boardcolorre)
-	boardcolorre = new RegExp("(?:aqua|black|blue|fuchsia|gray|grey|green|lime|maroon|navy|olive|purple|red|silver|teal|white|yellow|#[0-9a-f]{3}|#[0-9a-f]{6})", "i");
 
     // canvas-dependent sizes
     var cellsize = 30, xborder = 10, yborder = 10;
@@ -350,7 +426,7 @@ function draw_board(from_timeout) {
 	maxrad = smallrad * 6,
 	background = $.Color(232, 232, 242),
 	swing = $.easing.swing;
-    var i, j, s, ssize, sqs, r, x, y, overlap, f, fill, stroke;
+    var i, j, s, ssize, sqs, r, x, y, overlap, f, style;
 
     // restart animator
     board_animator = board_animator || new_animator(draw_board, 3);
@@ -434,44 +510,42 @@ function draw_board(from_timeout) {
 
 	if (f == "0" || now >= t_end) {
 	    ctx.lineWidth = 0.5;
-	    stroke = colors.board0.offborder;
-	    fill = colors.board0.off;
+	    style = [colors.board0.off, colors.board0.offborder];
 	} else {
 	    t_hold = t_start + hold_duration;
-	    fill = colors[f].on;
-	    stroke = colors[f].onborder;
-	    if (f == "ask" && boardcolorre.test(sqs[0][1])) {
-		fill = new $.Color(sqs[0][1]);
-		stroke = fill.lightness("-=0.15");
-	    }
+	    style = feedback_style(sqs && sqs[0], f, t_start,
+				   now - duration);
 	    if (now <= t_hold)
 		ctx.lineWidth = 3;
 	    else {
 		x = swing((now - t_hold) / (t_end - t_hold));
 		ctx.lineWidth = 3 - 2.5 * x;
-		stroke = stroke.transition(colors.board0.offborder, x);
+		style[1] = style[1].transition(colors.board0.offborder, x);
 	    }
-	    fill = colorat(now, board_animator,
-			   t_start, fill,
-			   t_hold, fill,
-			   t_end, colors.board0.off);
+	    style[0] = colorat(now, board_animator,
+			       t_start, style[0],
+			       t_hold, style[0],
+			       t_end, colors.board0.off);
 	}
 
 	if (overlap[i]) {
-	    fill = fill.alpha(0.8);
-	    stroke = stroke.alpha(0.8);
+	    style[0] = style[0].alpha(0.8);
+	    style[1] = style[1].alpha(0.8);
 	}
 
 	ctx.beginPath();
 	x = ((i % nacross) + 0.5) * cellsize + xborder;
 	y = (Math.floor(i / nacross) + 0.5) * cellsize + yborder;
-	ctx.arc(x, y, boardsizes[i].r, 0, 7);
-	ctx.fillStyle = fill.toRgbaString();
+	if (style[2])
+	    style[2](ctx, x, y, boardsizes[i].r);
+	else
+	    ctx.arc(x, y, boardsizes[i].r, 0, 7);
+	ctx.fillStyle = style[0].toRgbaString();
 	ctx.fill();
-	ctx.strokeStyle = stroke.toRgbaString();
+	ctx.strokeStyle = style[1].toRgbaString();
 	ctx.stroke();
 
-	if (sqs && sqs[0][0] > now - duration && sqs[0][1] && f != "ask") {
+	if (style[3] && sqs[0][0] > now - duration && f != "ask") {
 	    ctx.beginPath();
 	    ctx.arc(x, y, boardsizes[i].r / 2, 0, 7);
 	    ctx.fillStyle = colors.ask.inset.toRgbaString();
@@ -552,11 +626,13 @@ function hover_board(e) {
 	t = $(t + "px'></div>");
 
 	b = boardqs[hs[0]];
-	for (i = j = 0; j < 3 && i < b.length; ++i)
-	    if (b[i][1]) {
-		t.append($("<div></div>").text(b[i][1]));
+	for (i = j = 0; j < 3 && i < b.length; ++i) {
+	    x = feedback_style(b[i]);
+	    if (x[3]) {
+		t.append($("<div></div>").text(x[3]));
 		++j;
 	    }
+	}
 	t.appendTo($("body"));
 
 	boardinfo.hovers = hs;
