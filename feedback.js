@@ -63,16 +63,16 @@ function make_easing(start) {
 }
 
 function colorat(now, animator /* ... */) {
-    var i = 2;
-    while (arguments[i + 2] && now >= arguments[i + 2])
+    var i = 2, x = arguments;
+    while (x[i + 2] && now >= x[i + 2])
 	i += 2;
-    if (!arguments[i + 2] || arguments[i + 1] == arguments[i + 3]) {
-	animator.update_at(arguments[i + 2]);
-	return arguments[i + 1];
+    if (!x[i + 2] || x[i + 1] == x[i + 3]) {
+	animator.update_at(x[i + 2]);
+	return x[i + 1];
     } else {
 	animator.update_at(now);
-	return arguments[i + 1].transition(arguments[i + 3],
-					   $.easing.swing((now - arguments[i]) / (arguments[i + 2] - arguments[i])));
+	return x[i + 1].transition(x[i + 3],
+				   $.easing.swing((now - x[i]) / (x[i + 2] - x[i])));
     }
 }
 
