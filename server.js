@@ -510,6 +510,7 @@ function enqueue_poller(course, u, req, res) {
 	    delete course.pollers[poller];
 	    --course.npollers;
 	}
+	timeout = null;
 	course.panel(u, req, res, false);
     }
 
@@ -523,10 +524,12 @@ function enqueue_poller(course, u, req, res) {
 	while (course.pollers[poller])
 	    poller = (poller + 1) % 32768;
 	course.pollers[poller] = f;
-	req.on("close", function () {
-	    clearTimeout(timeout);
-	    delete course.pollers[poller];
-	    --course.npollers;
+	res.on("close", function () {
+	    if (timeout) {
+		clearTimeout(timeout);
+		delete course.pollers[poller];
+		--course.npollers;
+	    }
 	});
     }
 }
