@@ -41,14 +41,13 @@ function new_animator(f, interval_factor) {
 		next_expiry = Math.min(next_expiry, Math.max(now + a.interval, e));
 	},
 	go: function () {
-	    if (next_expiry == Infinity)
-		/* do nothing */;
-	    else if (next_expiry > now + a.interval) {
+	    if (next_expiry > now + a.interval) {
 		if (interval) {
 		    clearInterval(interval);
 		    interval = null;
 		}
-		timeout = setTimeout(f, next_expiry - now, 1);
+		if (next_expiry != Infinity)
+		    timeout = setTimeout(f, next_expiry - now, 1);
 	    } else
 		interval = interval || setInterval(f, a.interval, 0);
 	}
