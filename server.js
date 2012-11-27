@@ -704,6 +704,7 @@ function send_feedback_file(course, u, req, res) {
 	return redirect(u.action, u, req, res);
     fs.readFile(filename, "utf8", function (err, data) {
 	// XXX support gzip, notice file modification times
+	var content_type;
 	if (filename.match(/html$/)) {
 	    var x = course.board_title || (course.title && (course.title + " Feedback Board"));
 	    if (x)
@@ -716,9 +717,13 @@ function send_feedback_file(course, u, req, res) {
 				    "\nfeedback_url = \"" + x +
 				    encodeURIComponent(course.name) +
 				    "/\"");
-	    res.writeHead(200, {"Content-Type": "text/html"});
+	    content_type = "text/html";
 	} else
-	    res.writeHead(200, {"Content-Type": "application/x-javascript"});
+	    content_type = "application/x-javascript";
+	res.writeHead(200, {
+	    "Content-Type": content_type,
+	    "Content-Length": Buffer.byteLength(data)
+	});
 	end_and_log(u, req, res, data);
     });
 }
