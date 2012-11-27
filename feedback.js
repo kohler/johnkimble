@@ -21,6 +21,7 @@ var colors = {
     ask: {off: $.Color("#ded4c3"), on: $.Color("#86bbee"),
 	  onborder: $.Color("#778ee9"), inset: $.Color("#2089ee").alpha(0.7)}
 };
+$.Color.names.orange = "#FFA500";
 
 
 function new_animator(f, interval_factor) {
@@ -346,20 +347,29 @@ var feedback_shapes = (function () {
 					     y - rr * Math.sin(a));
 	    }
 	    ctx.closePath();
+	},
+	triangle: function (ctx, x, y, r) {
+	    polygonal_path(ctx, x, y, square_R * r, -star_start, 3);
 	}
     };
 })();
+
+function make_boardcolorre() {
+    var i, t = "(?:#[0-9a-f]{3}|#[0-9a-f]{6}";
+    for (i in $.Color.names)
+	if (i != "_default")
+	    t += "|" + i;
+    return new RegExp(t + ")", "i");
+}
 
 function feedback_style(sq, f, feedback_at, cutoff) {
     var m, a, b, i, shape, style = [];
 
     if (sq && sq[0] >= (cutoff || 0) && sq[1].charAt(0) == "{"
 	&& (m = sq[1].match(/^\{(.*?)\}(.*)$/))) {
-	if (!boardcolorre)
-	    boardcolorre = new RegExp("(?:aqua|black|blue|fuchsia|gray|grey|green|lime|maroon|navy|olive|purple|red|silver|teal|white|yellow|#[0-9a-f]{3}|#[0-9a-f]{6})", "i");
-
 	a = m[1].split(/[\s,]+/);
 	b = [];
+	boardcolorre = boardcolorre || make_boardcolorre();
 
 	for (i = 0; i < a.length; ++i)
 	    if (boardcolorre.test(a[i])) {
