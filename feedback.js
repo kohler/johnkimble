@@ -21,6 +21,7 @@ var colors = {
     ask: {off: $.Color("#ded4c3"), on: $.Color("#86bbee"),
 	  onborder: $.Color("#778ee9"), inset: $.Color("#2089ee").alpha(0.7)}
 };
+var default_style = [colors.board0.off, colors.board0.offborder];
 $.Color.names.orange = "#FFA500";
 
 
@@ -401,7 +402,7 @@ function draw_board(from_timeout) {
     var e = $("#feedbackboard"), cv = e[0];
 
     // canvas-dependent sizes
-    var cellsize = 30, xborder = 10, yborder = 10;
+    var cellsize = 30, xborder = 10, yborder = 10, nacross, ndown;
     while (1) {
 	nacross = Math.floor((cv.width - 2 * xborder) / cellsize);
 	ndown = Math.floor((cv.height - 2 * yborder) / cellsize);
@@ -520,7 +521,7 @@ function draw_board(from_timeout) {
 
 	if (f == "0" || now >= t_end) {
 	    ctx.lineWidth = 0.5;
-	    style = [colors.board0.off, colors.board0.offborder];
+	    style = default_style;
 	} else {
 	    t_hold = t_start + hold_duration;
 	    style = feedback_style(sqs && sqs[0], f, t_start,
