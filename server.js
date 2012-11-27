@@ -136,29 +136,33 @@ function json_response(u, req, res, j) {
 	content_type = "text/plain";
     else
 	content_type = "text/json";
-    res.writeHead(200, {
-	"Content-Type": content_type,
-	"Access-Control-Allow-Origin": req.headers.origin || "*",
-	"Access-Control-Allow-Credentials": true,
-	"Access-Control-Allow-Headers": "Accept-Encoding"
-    });
 
     j = JSON.stringify(j);
     if (u.query.callback)
 	j = u.query.callback + "(" + j + ")";
-    end_and_log(u, req, res, j);
-}
 
-function redirect(where, u, req, res) {
-    if (where[0] == "/")
-	where = where.substr(1);
-    res.writeHead(302, {
-	"Location": "/" + u.course + "/" + where,
+    res.writeHead(200, {
+	"Content-Type": content_type,
+	"Content-Length": Buffer.byteLength(j),
 	"Access-Control-Allow-Origin": req.headers.origin || "*",
 	"Access-Control-Allow-Credentials": true,
 	"Access-Control-Allow-Headers": "Accept-Encoding"
     });
-    end_and_log(u, req, res, "Redirecting\n");
+    end_and_log(u, req, res, j);
+}
+
+function redirect(where, u, req, res) {
+    var m = "Redirecting\n";
+    if (where[0] == "/")
+	where = where.substr(1);
+    res.writeHead(302, {
+	"Location": "/" + u.course + "/" + where,
+	"Content-Length": m.length,
+	"Access-Control-Allow-Origin": req.headers.origin || "*",
+	"Access-Control-Allow-Credentials": true,
+	"Access-Control-Allow-Headers": "Accept-Encoding"
+    });
+    end_and_log(u, req, res, m);
 }
 
 function not_found(u, req, res) {
