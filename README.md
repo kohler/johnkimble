@@ -34,19 +34,19 @@ independent.
 Configuration
 -------------
 
-Configure by writing a Javascript file `serverconfig.js` in the John
-Kimble directory. For instance, to run John Kimble on a different port
-and a specific hostname:
+The Javascript file `serverconfig.js` in the John Kimble directory can
+be used for configuration. There are three configuration objects:
+`server_config` for server-wide options, `course_config` for per-course
+options, and `default_course_config` for default values for per-course
+options. Call `extend` to change configuration options in one or more of
+these objects. For instance, to run John Kimble on a different port and
+a specific hostname, put this in `serverconfig.js`:
 
 ```js
 extend(server_config, {
    host: "hostname", port: 8192
 });
 ```
-
-There are three configuration objects: `server_config` for server-wide
-options, `course_config` for per-course options, and
-`default_course_config` for default values for per-course options.
 
 ### `server_config` options
 
