@@ -23,6 +23,7 @@ var colors = {
 };
 var default_style = [colors.board0.off, colors.board0.offborder];
 $.Color.names.orange = "#FFA500";
+$.Color.names.pink = "#FF69B4"; // actually "HotPink"
 
 
 function new_animator(f, interval_factor) {
@@ -311,46 +312,72 @@ function store_board(data) {
 }
 
 var feedback_shapes = (function () {
-    var square_R = Math.sqrt(Math.PI / 2);
-    var square_start = Math.PI / 4;
-    var octagon_R = Math.sqrt(Math.PI / (4 * Math.SQRT1_2));
-    var octagon_start = Math.PI / 8;
-    var star_start = Math.PI / 2;
+    var pi = Math.PI, cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt;
 
-    function polygonal_path(ctx, x, y, r, start, n) {
-	var i, a, d = Math.PI * 2 / n;
-	for (i = 0; i < n; ++i) {
-	    a = start + i * d;
-	    ctx[i ? "lineTo" : "moveTo"](x + r * Math.cos(a),
-					 y + r * Math.sin(a));
-	}
-	ctx.closePath();
+    function make_polygon(dr, start, n) {
+	return function (ctx, x, y, r) {
+	    var i, a, d = pi * 2 / n;
+	    for (i = 0; i < n; ++i) {
+		a = start + i * d;
+		ctx[i ? "lineTo" : "moveTo"](x + r * dr * cos(a),
+					     y + r * dr * sin(a));
+	    }
+	    ctx.closePath();
+	};
+    }
+
+    function make_star(drs, start, n) {
+	return function (ctx, x, y, r) {
+	    var i, a, d = pi / n;
+	    for (i = 0; i < 2 * n; ++i) {
+		a = start + i * d;
+		ctx[i ? "lineTo" : "moveTo"](x + r * drs[i & 1] * cos(a),
+					     y - r * drs[i & 1] * sin(a));
+	    }
+	    ctx.closePath();
+	};
+    }
+
+    var arrow_info = [1.02, 0,  0.95, pi * 0.57,
+		      1.02 * sin(pi * 0.84) / sin(pi * 0.57), pi * 0.57,
+		      1.02, pi * 0.84];
+    function make_arrow(direction) {
+	return function (ctx, x, y, r) {
+	    var i, a;
+	    for (i = 0; i < arrow_info.length; i += 2) {
+		a = direction + arrow_info[i + 1];
+		ctx[i ? "lineTo" : "moveTo"](x + r * arrow_info[i] * cos(a),
+					     y - r * arrow_info[i] * sin(a));
+	    }
+	    for (i -= 2; i > 0; i -= 2) {
+		a = direction - arrow_info[i + 1];
+		ctx.lineTo(x + r * arrow_info[i] * cos(a),
+			   y - r * arrow_info[i] * sin(a));
+	    }
+	    ctx.closePath();
+	};
     }
 
     return {
 	circle: null,
-	square: function (ctx, x, y, r) {
-	    polygonal_path(ctx, x, y, square_R * r, square_start, 4);
-	},
-	diamond: function (ctx, x, y, r) {
-	    polygonal_path(ctx, x, y, square_R * r, 0, 4);
-	},
-	octagon: function (ctx, x, y, r) {
-	    polygonal_path(ctx, x, y, octagon_R * r, octagon_start, 8);
-	},
-	star: function (ctx, x, y, r) {
-	    var i, a, d = Math.PI * 2 / 10, rr;
-	    for (i = 0; i < 10; ++i) {
-		a = star_start + i * d;
-		rr = r * ([1.2, 0.6])[i & 1];
-		ctx[i ? "lineTo" : "moveTo"](x + rr * Math.cos(a),
-					     y - rr * Math.sin(a));
-	    }
-	    ctx.closePath();
-	},
-	triangle: function (ctx, x, y, r) {
-	    polygonal_path(ctx, x, y, square_R * r, -star_start, 3);
-	}
+	square: make_polygon(sqrt(pi/2), pi/4, 4),
+	diamond: make_polygon(sqrt(pi/2), 0, 4),
+	octagon: make_polygon(sqrt(pi/(4*Math.SQRT1_2)), pi/8, 8),
+	star: make_star([1.2, 0.6], pi/2, 5),
+	star7: make_star([1.2, 0.6], -pi/2, 7),
+	seal: make_star([1.1, 0.9], -pi/2, 18),
+	triangle: make_polygon(sqrt(pi/2), -pi/2, 3),
+	tri: make_polygon(sqrt(pi/2), -pi/2, 3),
+	invtriangle: make_polygon(sqrt(pi/2), pi/2, 3),
+	invtri: make_polygon(sqrt(pi/2), pi/2, 3),
+	n: make_arrow(pi/2),
+	nw: make_arrow(3*pi/4),
+	w: make_arrow(pi),
+	sw: make_arrow(5*pi/4),
+	s: make_arrow(-pi/2),
+	se: make_arrow(-pi/4),
+	e: make_arrow(0),
+	ne: make_arrow(pi/4)
     };
 })();
 
