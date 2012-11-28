@@ -355,6 +355,25 @@ var feedback_shapes = (function () {
 	};
     }
 
+    function draw_x(ctx, x, y, r, min_r) {
+	var p = pen(ctx, x, y, r, min_r), a;
+	for (a = 0; a < 2*pi; a += pi/2) {
+	    p(0.5466, a);
+	    p(1.01, a + pi/8);
+	    p(1.01, a + 3*pi/8);
+	}
+	ctx.closePath();
+    }
+
+    function draw_o(ctx, x, y, r, min_r) {
+	ctx.arc(x, y, r, 0, 7);
+	var smr = r - Math.max(0.7*r, 4);
+	if (smr > 0) {
+	    ctx.moveTo(x + smr, y);
+	    ctx.arc(x, y, smr, 0, -7, true);
+	}
+    }
+
     return {
 	circle: null,
 	square: make_polygon(sqrt(pi/2), pi/4, 4),
@@ -374,7 +393,9 @@ var feedback_shapes = (function () {
 	s: make_arrow(-pi/2),
 	se: make_arrow(-pi/4),
 	e: make_arrow(0),
-	ne: make_arrow(pi/4)
+	ne: make_arrow(pi/4),
+	x: draw_x,
+	o: draw_o
     };
 })();
 
