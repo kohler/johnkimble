@@ -567,20 +567,29 @@ function draw_board(from_timeout) {
     board_animator.go();
 }
 
-var window_width, window_height;
-function resize_feedbackboard() {
-    var p = $("#feedbackcontainer"), w$ = $(window),
-	w = w$.width(), h = w$.height();
-    if (window_width != w || window_height != h) {
-	window_width = w;
-	window_height = h;
-	p.css({width: w, height: h});
+var resize_feedbackboard = (function () {
+    var history = [], delta = 0;
+    return function () {
+	var w$ = $(window), w = w$.width(), h = w$.height(), i;
+	for (i = 0; i != history.length; ++i)
+	    if (history[i][0] == w && history[i][1] == h)
+		break;
+	if (i == 0 && i != history.length) {
+	    $("#feedbackboard").attr({width: w - delta, height: h - delta});
+	    return draw_board(0);
+	}
+	var now = (new Date).getTime();
+	if (i != history.length && history[i][2] + 200 > now)
+	    delta += 1;
+	else if (history.length && history[0][2] + 500 < now)
+	    delta = 0;
+	if (history.length > 10)
+	    history.pop();
+	history.unshift([w - delta, h - delta, now]);
+	$("#feedbackcontainer").css({width: w - delta, height: h - delta});
 	setTimeout(resize_feedbackboard, 1);
-    } else {
-	$("#feedbackboard").attr({width: w, height: h});
-	draw_board(0);
-    }
-}
+    };
+})();
 
 function unhover_board() {
     if (boardinfo.hovering >= 0) {
