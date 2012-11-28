@@ -312,48 +312,45 @@ function store_board(data) {
 }
 
 var feedback_shapes = (function () {
-    var pi = Math.PI, cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt;
+    var pi = Math.PI, cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt,
+        max = Math.max;
+
+    function pen(ctx, x, y, r, min_r) {
+	var op = "moveTo";
+	return function (dr, a) {
+	    dr = max(r * dr, min_r || 0);
+	    ctx[op](x + dr * cos(a), y - dr * sin(a));
+	    op = "lineTo";
+	};
+    }
 
     function make_polygon(dr, start, n) {
-	return function (ctx, x, y, r) {
-	    var i, a, d = pi * 2 / n;
-	    for (i = 0; i < n; ++i) {
-		a = start + i * d;
-		ctx[i ? "lineTo" : "moveTo"](x + r * dr * cos(a),
-					     y + r * dr * sin(a));
-	    }
+	return function (ctx, x, y, r, min_r) {
+	    var p = pen(ctx, x, y, r, min_r), i, d = 2*pi / n;
+	    for (i = 0; i < n; ++i)
+		p(dr, start + i * d);
 	    ctx.closePath();
 	};
     }
 
     function make_star(drs, start, n) {
-	return function (ctx, x, y, r) {
-	    var i, a, d = pi / n;
-	    for (i = 0; i < 2 * n; ++i) {
-		a = start + i * d;
-		ctx[i ? "lineTo" : "moveTo"](x + r * drs[i & 1] * cos(a),
-					     y - r * drs[i & 1] * sin(a));
-	    }
+	return function (ctx, x, y, r, min_r) {
+	    var p = pen(ctx, x, y, r, min_r), i, d = pi / n;
+	    for (i = 0; i < 2 * n; ++i)
+		p(drs[i & 1], start + i * d);
 	    ctx.closePath();
 	};
     }
 
-    var arrow_info = [1.02, 0,  0.95, pi * 0.57,
-		      1.02 * sin(pi * 0.84) / sin(pi * 0.57), pi * 0.57,
-		      1.02, pi * 0.84];
+    var arrow_info = [1.02, 0,  0.95, 0.57*pi,
+		      1.02 * sin(0.84*pi) / sin(0.57*pi), 0.57*pi,  1.02, 0.84*pi];
     function make_arrow(direction) {
-	return function (ctx, x, y, r) {
-	    var i, a;
-	    for (i = 0; i < arrow_info.length; i += 2) {
-		a = direction + arrow_info[i + 1];
-		ctx[i ? "lineTo" : "moveTo"](x + r * arrow_info[i] * cos(a),
-					     y - r * arrow_info[i] * sin(a));
-	    }
-	    for (i -= 2; i > 0; i -= 2) {
-		a = direction - arrow_info[i + 1];
-		ctx.lineTo(x + r * arrow_info[i] * cos(a),
-			   y - r * arrow_info[i] * sin(a));
-	    }
+	return function (ctx, x, y, r, min_r) {
+	    var p = pen(ctx, x, y, r, min_r), i;
+	    for (i = 0; i < arrow_info.length; i += 2)
+		p(arrow_info[i], direction + arrow_info[i + 1]);
+	    for (i -= 2; i > 0; i -= 2)
+		p(arrow_info[i], direction - arrow_info[i + 1]);
 	    ctx.closePath();
 	};
     }
@@ -364,12 +361,12 @@ var feedback_shapes = (function () {
 	diamond: make_polygon(sqrt(pi/2), 0, 4),
 	octagon: make_polygon(sqrt(pi/(4*Math.SQRT1_2)), pi/8, 8),
 	star: make_star([1.2, 0.6], pi/2, 5),
-	star7: make_star([1.2, 0.6], -pi/2, 7),
+	star7: make_star([1.2, 0.7], -pi/2, 7),
 	seal: make_star([1.1, 0.9], -pi/2, 18),
-	triangle: make_polygon(sqrt(pi/2), -pi/2, 3),
-	tri: make_polygon(sqrt(pi/2), -pi/2, 3),
-	invtriangle: make_polygon(sqrt(pi/2), pi/2, 3),
-	invtri: make_polygon(sqrt(pi/2), pi/2, 3),
+	triangle: make_polygon(sqrt(pi/2), pi/2, 3),
+	tri: make_polygon(sqrt(pi/2), pi/2, 3),
+	invtriangle: make_polygon(sqrt(pi/2), -pi/2, 3),
+	invtri: make_polygon(sqrt(pi/2), -pi/2, 3),
 	n: make_arrow(pi/2),
 	nw: make_arrow(3*pi/4),
 	w: make_arrow(pi),
@@ -574,7 +571,7 @@ function draw_board(from_timeout) {
 	x = ((i % nacross) + 0.5) * cellsize + xborder;
 	y = (Math.floor(i / nacross) + 0.5) * cellsize + yborder;
 	if (style[2])
-	    style[2](ctx, x, y, boardsizes[i].r);
+	    style[2](ctx, x, y, boardsizes[i].r, smallrad);
 	else
 	    ctx.arc(x, y, boardsizes[i].r, 0, 7);
 	ctx.fillStyle = style[0].toRgbaString();
