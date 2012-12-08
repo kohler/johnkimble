@@ -4,6 +4,7 @@ var cookies = require("cookies");
 var querystring = require("querystring");
 var fs = require("fs");
 var crypto = require("crypto");
+var util = require("util");
 function extend(dst, src) {
     for (var i in src)
 	dst[i] = src[i];
@@ -43,8 +44,7 @@ var default_course_config = {
 var course_config = {
 };
 
-if (fs.existsSync("serverconfig.js"))
-    eval(fs.readFileSync("serverconfig.js", "utf8"));
+var access_log = process.stdout;
 
 if (!server_config.hmac_key)
     server_config.hmac_key = crypto.randomBytes(64);
@@ -119,12 +119,12 @@ function log_format(now) {
 
 function end_and_log(u, req, res, data) {
     res.end(data);
-    console.log("%s %s - [%s] \"%s %s HTTP/%s\" %d %s",
-		req.connection.remoteAddress,
-		u.cookie ? u.cookie.id : "-",
-		log_format(u.now),
-		req.method, u.pathname, req.httpVersion,
-		res.statusCode, data.length);
+    access_log.write(util.format("%s %s - [%s] \"%s %s HTTP/%s\" %d %s\n",
+				 req.connection.remoteAddress,
+				 u.cookie ? u.cookie.id : "-",
+				 log_format(u.now),
+				 req.method, u.pathname, req.httpVersion,
+				 res.statusCode, data.length));
 }
 
 function json_response(u, req, res, j) {
@@ -336,7 +336,8 @@ Course.prototype.gc = function(now, need) {
     for (i in this.s)
 	ss.push(this.s[i]);
     if (ss.length != this.size)
-	console.log("CONFUSION! " + this.name + ".size == " + this.size + ", contains " + ss.length);
+	console.warn("[%s] %s.size == %d, contains %d",
+		     log_format(now), this.name, this.size, ss.length);
     ss.sort(function (a, b) {
 	if (!a.auth_at != !b.auth_at)
 	    return !!a.auth_at - !!b.auth_at;
@@ -847,13 +848,25 @@ function server(req, res) {
 
 
 (function () {
-    var opt = {}, m;
-    for (var i = 2; i < process.argv.length; ++i)
-	if ((m = process.argv[i].match(/^--([^=]*)(=(.*))?$/)))
-	    opt[m[1]] = m[2] ? m[3] : true;
+    var needargs = {port: 1, p: 1, "init-file": 1, f: 1}, opt = {}, i, x, m;
+    for (var i = 2; i < process.argv.length; ++i) {
+	if ((m = process.argv[i].match(/^--([^=]*)(=.*)?$/)))
+	    m[2] = m[2] ? m[2].substr(1) : null;
+        else if (!(m = process.argv[i].match(/^-(\w)(.*)$/)))
+	    break;
+	if (needargs[m[1]] && !m[2])
+	    m[2] = process.argv[++i];
+	opt[m[1]] = m[2] ? m[2] : true;
+    }
+
+    if ((x = opt["init-file"] || opt.f))
+	eval(fs.readFileSync(x, "utf8"));
+    else if (!opt["no-init-file"] && fs.existsSync("serverconfig.js"))
+	eval(fs.readFileSync("serverconfig.js", "utf8"));
+
     if (!opt.fg) {
 	if (server_config.access_log != "ignore" && server_config.access_log != "inherit")
-	    server_config.access_log = fs.openSync(server_config.access_log, "a");
+	    server_config.access_log = "ignore";
 	if (server_config.error_log != "ignore" && server_config.error_log != "inherit")
 	    server_config.error_log = fs.openSync(server_config.error_log, "a");
 	require("child_process").spawn(process.argv[0],
@@ -866,7 +879,32 @@ function server(req, res) {
     }
     if (opt.nohup)
 	process.on("SIGHUP", function () {});
+    if (opt.port || opt.p)
+	server_config.port = +(opt.port || opt.p);
+
+    if (server_config.access_log == "ignore")
+	access_log = fs.createWriteStream("/dev/null", {flags: "a"});
+    else if (server_config.access_log && server_config.access_log != "inherit")
+	access_log = fs.createWriteStream(server_config.access_log, {flags: "a"});
 })();
 
-http.createServer(server).listen(server_config.port);
-console.log("Server running at http://" + (server_config.host || "localhost") + ":" + server_config.port + "/");
+(function () {
+    var s = http.createServer(server);
+    s.on("error", function (e) {
+	if (e.code != "EMFILE") {
+	    console.log(e.toString());
+	    process.exit(1);
+	}
+    });
+    s.listen(server_config.port, function () {
+	var now_s = log_format(get_now());
+	access_log.write(util.format("\n- - - [%s] \"START http://%s:%s/\" 0 0\n",
+				     now_s,
+				     server_config.host || "localhost",
+				     server_config.port));
+	console.warn("[%s] John Kimble server running at http://%s:%s/",
+		     now_s,
+		     server_config.host || "localhost",
+		     server_config.port);
+    });
+})();

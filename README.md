@@ -48,6 +48,9 @@ extend(server_config, {
 });
 ```
 
+The `--init-file` option can specify a different configuration file to
+load; for instance, `node server.js --init-file=FILE`.
+
 ### `server_config` options
 
 * `host` (string, default: none)
