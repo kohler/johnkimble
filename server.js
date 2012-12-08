@@ -60,11 +60,7 @@ var courses = {
     // }
 };
 
-function get_now() {
-    return (new Date).getTime();
-}
-
-var server_id = Math.floor(get_now() / 1000 - 1000000000);
+var server_id;
 var cookie_re = new RegExp("^(.*?)&(.*)$");
 var feedback_files = {
     "": "index.html",
@@ -77,18 +73,17 @@ var feedback_files = {
     "jquery.color-2.1.0.min.js": "jquery.color-2.1.0.min.js"
 };
 
-function set_url(x) {
-    if (!x.url && x.host) {
-	if (x.https)
-	    x.url = "https://" + x.host + (x.port == 443 ? "" : ":" + x.port);
-	else
-	    x.url = "http://" + x.host + (x.port == 80 ? "" : ":" + x.port);
-    }
-    if (x.url && !x.url.match(/\/$/))
-	x.url += "/";
+
+// HELPER FUNCTIONS
+
+// Return current time as an integer number of milliseconds
+function get_now() {
+    return (new Date).getTime();
 }
 
-function parse_body_form(u, req, complete) {
+// Receive a body sent onto `req`. When complete, parse it into `u.body`
+// as a query string, then call `complete()`.
+function http_read_body_form(u, req, complete) {
     u.body = "";
     req.setEncoding("utf8");
     req.on("data", function (chunk) {
@@ -99,8 +94,24 @@ function parse_body_form(u, req, complete) {
     });
 }
 
+// Return the next user ID (a base64 string).
+next_id = (function () {
+    var id_buf = new Buffer(256), id_len = 6;
+    id_buf.fill(0);
+    id_buf.writeUInt32LE(server_id & 0x7FFFFFFF, 0);
+    return function () {
+	var i = 4;
+	do {
+	    ++id_buf[i], ++i;
+	    if (id_buf[i - 1] == 0 && i == id_len)
+		id_len += 3;
+	} while (id_buf[i - 1] == 0);
+	return id_buf.toString("base64", 0, id_len);
+    };
+})();
 
-// logging and responses
+
+// LOGGING AND RESPONSES
 
 function log_format(now) {
     var d = new Date(now), i, tzo = d.getTimezoneOffset(), atzo = Math.abs(tzo),
@@ -171,25 +182,7 @@ function not_found(u, req, res) {
 }
 
 
-// ID strings
-
-next_id = (function () {
-    var id_buf = new Buffer(256), id_len = 6;
-    id_buf.fill(0);
-    id_buf.writeUInt32LE(server_id & 0x7FFFFFFF, 0);
-    return function () {
-	var i = 4;
-	do {
-	    ++id_buf[i], ++i;
-	    if (id_buf[i - 1] == 0 && i == id_len)
-		id_len += 3;
-	} while (id_buf[i - 1] == 0);
-	return id_buf.toString("base64", 0, id_len);
-    };
-})();
-
-
-// Course object
+// COURSE OBJECT
 
 function Course(name) {
     var i, f;
@@ -212,8 +205,16 @@ function Course(name) {
 	this[i] = default_course_config[i];
     for (i in course_config[name] || {})
 	this[i] = course_config[name][i];
-    set_url(this);
 
+    if (!this.url && this.host)
+	this.url = (this.https ? "https://" : "http://") +
+	    this.host +
+	    (this.port == (this.https ? 443 : 80) ? "" : ":" + this.port);
+    if (this.url && !this.url.match(/\/$/))
+	this.url += "/";
+
+    if (typeof this.cookie_httponly === "undefined")
+	this.cookie_httponly = true;
     if (this.auth == "never")
 	this.auth = false;
     else if (this.auth && this.auth != "feedback" && this.auth != "overload")
@@ -224,7 +225,7 @@ function Course(name) {
 }
 
 
-// Cookies
+// COOKIES
 
 Course.prototype.check_cookie = function(req, res, now) {
     var c = new cookies(req, res), m, s, message_data, digest;
@@ -268,7 +269,7 @@ Course.prototype.set_cookie = function(s, req, res) {
     s += "&" + digest.digest("base64");
     (new cookies(req, res)).set("feedback61", s, {
 	path: "/" + this.name + "/",
-	httpOnly: typeof(this.cookie_httponly) === "undefined" || this.cookie_httponly
+	httpOnly: this.cookie_httponly
     });
     return j;
 };
@@ -276,13 +277,13 @@ Course.prototype.set_cookie = function(s, req, res) {
 Course.prototype.clear_cookie = function(req, res, now) {
     (new cookies(req, res)).set("feedback61", "", {
 	path: "/" + this.name + "/",
-	httpOnly: typeof(this.cookie_httponly) === "undefined" || this.cookie_httponly,
+	httpOnly: this.cookie_httponly,
 	expires: new Date(now - 1000000)
     });
 };
 
 
-// Users
+// USERS
 
 Course.prototype.ensure_user = function(id, now) {
     var s = this.s[id];
@@ -326,9 +327,6 @@ Course.prototype.deactivate = function(s, now) {
 	this.update = true;
     }
 };
-
-
-// User GC
 
 Course.prototype.gc = function(now, need) {
     var i, j, ss = [];
@@ -375,7 +373,7 @@ Course.prototype.gc = function(now, need) {
 };
 
 
-// Authentication
+// AUTHENTICATION
 
 Course.prototype.need_auth = function(action, auth_at, now) {
     return ((!auth_at
@@ -416,7 +414,7 @@ Course.prototype.handle_auth = function(u, req, res) {
 	    ok: true, message: "authentication not required"
 	});
 
-    parse_body_form(u, req, function() {
+    http_read_body_form(u, req, function() {
 	if (!(challenge = u.body.recaptcha_challenge_field)
 	    || !(response = u.body.recaptcha_response_field))
 	    return callback({
@@ -471,7 +469,7 @@ Course.prototype.handle_auth = function(u, req, res) {
 };
 
 
-// status result
+// STATUS RESULT
 
 Course.prototype.status = function(s, u, req, res, extra) {
     var duration = this.duration, j = {
@@ -498,7 +496,7 @@ Course.prototype.status = function(s, u, req, res, extra) {
 };
 
 
-// panel
+// PANEL
 
 function enqueue_poller(course, u, req, res) {
     var timeout, poller;
@@ -582,6 +580,9 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
     return json_response(u, req, res, j);
 };
 
+
+// ACTIONS
+
 Course.prototype.feedback = function(s, f, now) {
     if (f == "" || f == "cancel" || f == "0")
 	f = 0;
@@ -650,7 +651,7 @@ Course.prototype.ask_request = function(s, u, req, res) {
 	u.body = u.query;
 	complete();
     } else
-	parse_body_form(u, req, complete);
+	http_read_body_form(u, req, complete);
 };
 
 Course.prototype.finish_update = function(now) {
@@ -693,6 +694,9 @@ Course.prototype.rm_phantom = function(now) {
     this.phanta.splice(i, 1);
     return true;
 };
+
+
+// SERVER
 
 function create_course(cname) {
     if (!courses[cname] && !course_config[cname] && courses._size > 10000)
@@ -847,6 +851,8 @@ function server(req, res) {
 }
 
 
+// INITIALIZATION
+
 (function () {
     var needargs = {port: 1, p: 1, "init-file": 1, f: 1}, opt = {}, i, x, m;
     for (var i = 2; i < process.argv.length; ++i) {
@@ -859,6 +865,7 @@ function server(req, res) {
 	opt[m[1]] = m[2] ? m[2] : true;
     }
 
+    server_id = Math.floor(get_now() / 1000 - 1000000000);
     if ((x = opt["init-file"] || opt.f))
 	eval(fs.readFileSync(x, "utf8"));
     else if (!opt["no-init-file"] && fs.existsSync("serverconfig.js"))
