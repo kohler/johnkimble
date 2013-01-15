@@ -639,7 +639,7 @@ var resize_feedbackboard = (function () {
 function unhover_board() {
     if (boardinfo.hovering >= 0) {
 	boardinfo.hovering = -1;
-	$("#feedbackhovertext").hide();
+	$(".showquestion").hide();
     }
 }
 
@@ -660,7 +660,7 @@ function hover_board_status(x, y) {
     r = Math.sqrt((xc - x) * (xc - x) + (yc - y) * (yc - y));
     if (r > boardsizes[i].r + 2)
 	return null;
-    return [i, q[0][0]];
+    return {"0": i, "1": q[0][0], x: xc, y: yc};
 }
 
 function hover_board(e) {
@@ -668,39 +668,72 @@ function hover_board(e) {
         bw = b.width(), bh = b.height(),
         x = e.pageX - p.left, y = e.pageY - p.top, t, b, body, i, j,
 	hs = hover_board_status(x, y);
+
     if ((!hs && !boardinfo.hovers)
 	|| (hs && boardinfo.hovers && hs[0] == boardinfo.hovers[0]
 	    && hs[1] == boardinfo.hovers[1]))
 	return;
-    else if (!hs) {
+
+    $(".showquestion").remove();
+    if (!hs) {
 	boardinfo.hovers = null;
-	$(".feedbackhovertext").remove();
-    } else {
-	body = $(document);
-	t = "<div class='feedbackhovertext' style='position:absolute;max-width:" +
-	    bw + "px;";
-	if (x < bw / 2)
-	    t += "right:" + (body.width() - p.left - bw);
-	else
-	    t += "left:" + p.left;
-	if (y < bh / 2)
-	    t += "px;bottom:" + (body.height() - p.top - bh);
-	else
-	    t += "px;top:" + p.top;
-	t = $(t + "px'></div>");
-
-	b = boardqs[hs[0]];
-	for (i = j = 0; j < 3 && i < b.length; ++i) {
-	    x = feedback_style(b[i]);
-	    if (x[3]) {
-		t.append($("<div></div>").text(x[3]));
-		++j;
-	    }
-	}
-	t.appendTo($("body"));
-
-	boardinfo.hovers = hs;
+	return;
     }
+
+    body = $(document);
+    t = $("<div class='showquestion' style='position:absolute;max-width:" +
+	  bw + "px;visibility:hidden;top:0;left:0'></div>");
+
+    t.append("<div class='qtail0'></div>");
+    b = boardqs[hs[0]];
+    for (i = j = 0; j < 3 && i < b.length; ++i) {
+	x = feedback_style(b[i]);
+	if (x[3]) {
+	    t.append($("<div class='q q" + j + "'></div>").text(x[3]));
+	    ++j;
+	}
+    }
+    t.append("<div class='qtail1'></div>");
+    t.appendTo($("body"));
+
+    // position the question
+    var tw = t.outerWidth(), th = t.outerHeight(), tpos;
+    var spl = hs.x - (tw + 16), spr = bw - hs.x - (tw + 16),
+        spt = hs.y - (th + 16), spb = bh - hs.y - (th + 16);
+    if (spl > 0 && spl > 1.2 * spr) {
+	x = hs.x - 16 - tw;
+	tpos = "r";
+    } else if (spr > 0) {
+	x = hs.x + 16;
+	tpos = "l";
+    } else if (spt > 0 || spt > 1.2 * spb) {
+	y = hs.y - 16 - th;
+	tpos = "b";
+    } else {
+	y = hs.y + 16;
+	tpos = "t";
+    }
+    t.find(".qtail0, .qtail1").addClass(tpos);
+    if (tpos == "l") {
+	y = Math.min(hs.y - Math.max(th / 2, 16), bh - th - 5);
+	y = Math.floor(Math.max(y, Math.min(5, (bh - th) / 2), 0));
+	spt = Math.max(hs.y - y - 9, 5);
+	t.find(".qtail0, .qtail1").css({top: spt});
+    } else if (tpos == "r") {
+	y = Math.min(hs.y - th + Math.max(th / 2, 18), bh - th - 5);
+	y = Math.floor(Math.max(y, Math.min(5, (bh - th) / 2), 0));
+	spt = Math.min(hs.y - y, th - 16);
+	t.find(".qtail0").css({top: spt});
+	t.find(".qtail1").css({top: spt + 1});
+    } else {
+	x = Math.min(Math.floor(hs.x - tw / 2), bw - tw - 5);
+	x = Math.max(x, Math.min(5, (bw - tw) / 2), 0);
+	spl = Math.max(hs.x - x - 9, 5);
+	t.find(".qtail0, .qtail1").css({left: spl});
+    }
+    t.css({visibility: "visible", left: p.left + x, top: p.top + y});
+
+    boardinfo.hovers = hs;
 }
 
 

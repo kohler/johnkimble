@@ -8,16 +8,69 @@
 body {
 	font-family: sans-serif;
 }
-.feedbackhovertext {
+.showquestion {
 	display: table-cell;
 	padding: 2px 8px;
 	border-radius: 5px;
-	background-color: rgba(246, 244, 189, 0.8);
+	background-color: rgba(246, 244, 189, 0.88);
 	border: 1px solid #b8af25;
 	font-size: 75%;
 }
-.feedbackhovertext > div {
+.showquestion > .q {
 	margin: 2px 0;
+	color: #555555;
+}
+.showquestion > .q.q0 {
+	color: black;
+}
+.qtail0, .qtail1 {
+	position: absolute;
+	border-style: solid;
+	width: 0;
+}
+.qtail0.b, .qtail0.t {
+	border-color: #b8af25 transparent;
+}
+.qtail1.b, .qtail1.t {
+	border-color: rgba(246, 244, 189, 0.9) transparent;
+}
+.qtail0.b {
+	bottom: -10px;
+	border-width: 9px 0 0 9px;
+}
+.qtail1.b {
+	bottom: -8px;
+	border-width: 8px 0 0 8px;
+}
+.qtail0.t {
+	top: -10px;
+	border-width: 0 0 9px 9px;
+}
+.qtail1.t {
+	top: -8px;
+	border-width: 0 0 8px 8px;
+}
+.qtail0.l, .qtail0.r {
+	border-color: transparent #b8af25;
+}
+.qtail1.l, .qtail1.r {
+	border-color: transparent rgba(246, 244, 189, 0.9);
+}
+.qtail0.l {
+	left: -10px;
+	border-width: 9px 9px 0 0;
+}
+.qtail1.l {
+	left: -8px;
+	border-width: 8px 8px 0 0;
+}
+.qtail0.r {
+	right: -10px;
+	border-width: 0 0 9px 9px;
+}
+.qtail1.r {
+	right: -8px;
+	border-width: 0 0 8px 8px;
 }
 </style><script>
 feedback_url = null;
