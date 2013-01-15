@@ -2,13 +2,13 @@ John Kimble
 ===========
 
 John Kimble is a Web system for live, anonymous classroom feedback.
-Students load a simple Web page that looks like this:
+Students load this page:
 
 ![Feedback screenshot](https://github.com/kohler/johnkimble/raw/master/doc/feedback-screenshot.png)
 
 The “STOP” and “GO” buttons indicate confusion and boredom,
 respectively; “ASK” lets a student ask a question. The instructor
-loads another simple screen that visually summarizes the class.
+loads another screen that visually summarizes the class.
 
 ![Feedback board screenshot](https://github.com/kohler/johnkimble/raw/master/doc/board-screenshot.png)
 
@@ -115,13 +115,13 @@ extend(course_config, {
 * `feedback_title` (string)
 
     Human-readable title for feedback pages. Can contain HTML tags.
-    Defaults to `<TITLE> Feedback`, where `<TITLE>` is the `title`
+    Defaults to `TITLE Feedback`, where `TITLE` is the `title`
     configuration option.
 
 * `board_title` (string)
 
     Human-readable title for the feedback board. Can contain HTML
-    tags. Defaults to `<TITLE> Feedback Board`, where `<TITLE>` is the
+    tags. Defaults to `TITLE Feedback Board`, where `TITLE` is the
     `title` configuration option.
 
 #### Capacity options
