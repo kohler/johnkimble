@@ -74,6 +74,8 @@ var feedback_files = {
     "jquery.color-2.1.0.min.js": "jquery.color-2.1.0.min.js",
     "jquery.color-2.1.1.min.js": "jquery.color-2.1.1.min.js"
 };
+var file_cache = {
+};
 
 
 // HELPER FUNCTIONS
@@ -144,11 +146,11 @@ function json_response(u, req, res, j) {
     var c = (u && u.course && courses[u.course]) || default_course_config;
     var content_type;
     if (u.query.callback)
-	content_type = "text/javascript";
+	content_type = "application/javascript";
     else if ("jsontext" in u.query ? u.query.jsontext : c.jsontext)
 	content_type = "text/plain";
     else
-	content_type = "text/json";
+	content_type = "application/json";
 
     j = JSON.stringify(j);
     if (u.query.callback)
@@ -203,6 +205,7 @@ function Course(name) {
     this.host = server_config.host;
     this.port = server_config.port;
     this.hmac_key = server_config.hmac_key + name;
+    this.file_cache = {};
     for (i in default_course_config)
 	this[i] = default_course_config[i];
     for (i in course_config[name] || {})
@@ -708,34 +711,129 @@ function create_course(cname) {
     return true;
 }
 
-function send_feedback_file(course, u, req, res) {
-    var filename = feedback_files[u.action];
-    if (filename != "index.html" && u.pathname.match(/\/$/))
-	return redirect(u.action, u, req, res);
-    fs.readFile(filename, "utf8", function (err, data) {
-	// XXX support gzip, notice file modification times
-	var content_type;
-	if (filename.match(/html$/)) {
-	    var x = course.board_title || (course.title && (course.title + " Feedback Board"));
-	    if (x)
-		data = data.replace(/John Kimble Feedback Board/g, x);
-	    x = course.feedback_title || (course.title && (course.title + " Feedback"));
-	    if (x)
-		data = data.replace(/John Kimble Feedback/g, x);
-	    if ((x = course.url))
-		data = data.replace(/\nfeedback_url = null/,
-				    "\nfeedback_url = \"" + x +
-				    encodeURIComponent(course.name) +
-				    "/\"");
-	    content_type = "text/html";
-	} else
-	    content_type = "application/x-javascript";
+function FileCache(filename, content_type, translator) {
+    this.filename = filename;
+    this.content_type = content_type;
+    this.data = null;
+    this.translator = translator || (function (x) { return x; });
+    this.callbacks = [];
+}
+
+(function () {
+function fc_read(fc, cb) {
+    if (fc.callbacks.length)
+	fc.callbacks.push(cb);
+    else {
+	var stat = fs.statSync(fc.filename);
+	if (fc.data && stat.ino == fc.stat.ino
+	    && stat.mtime.getTime() == fc.stat.mtime.getTime())
+	    cb.call(fc, fc.data);
+	else {
+	    fc.callbacks.push(cb);
+	    fs.readFile(fc.filename, "utf8", function (err, data) {
+		fc.data = fc.translator.call(fc, data);
+		fc.stat = stat;
+		fc.gzip = fc.deflate = null;
+		var cbs = fc.callbacks;
+		fc.callbacks = [];
+		for (var i = 0; i < cbs.length; ++i)
+		    cbs[i].call(fc, fc.data);
+	    });
+	}
+    }
+}
+
+FileCache.prototype.read = function (cb) {
+    fc_read(this, cb);
+};
+
+FileCache.prototype.compress = function (encoding, cb) {
+    var fc = this, zlib;
+    if (this[encoding] || !this.data)
+	cb.call(this, this[encoding] || null);
+    else {
+	zlib = require("zlib");
+	zlib[encoding](this.data, function (err, data) {
+	    fc[encoding] = data;
+	    cb.call(fc, data);
+	});
+    }
+};
+
+function make_compress_cb(encoding, u, req, res) {
+    return function (data) {
+	this.compress(encoding, function (data) {
+	    res.writeHead(200, {
+		"Content-Type": this.content_type,
+		"Content-Length": data.length,
+		"Content-Encoding": encoding
+	    });
+	    end_and_log(u, req, res, data);
+	});
+    };
+}
+
+function make_send_cb(u, req, res) {
+    var enclist = req.headers["accept-encoding"] || "";
+    if (enclist) {
+	var re = /\b(gzip|deflate|identity)\s*(?:;\s*q\s*=\s*([\d.]+))?/g,
+	    encoding = "identity", q = 0.0001, m;
+	while ((m = re.exec(enclist)))
+	    if (m[1] == encoding || +(m[2] || 1) > q) {
+		encoding = m[1];
+		q = +(m[2] || 1);
+	    }
+	if (encoding != "identity")
+	    return make_compress_cb(encoding, u, req, res);
+	else if (q == 0) {
+	    res.writeHead(406);
+	    return end_and_log(u, req, res, "Encoding not acceptable\n");
+	}
+    }
+    return function (data) {
 	res.writeHead(200, {
-	    "Content-Type": content_type,
+	    "Content-Type": this.content_type,
 	    "Content-Length": Buffer.byteLength(data)
 	});
 	end_and_log(u, req, res, data);
-    });
+    };
+}
+
+FileCache.prototype.send = function(u, req, res) {
+    this.read(make_send_cb(u, req, res));
+};
+
+})();
+
+function make_course_translator(course) {
+    return function (data) {
+	var x = course.board_title || (course.title && (course.title + " Feedback Board"));
+	if (x)
+	    data = data.replace(/John Kimble Feedback Board/g, x);
+	x = course.feedback_title || (course.title && (course.title + " Feedback"));
+	if (x)
+	    data = data.replace(/John Kimble Feedback/g, x);
+	if ((x = course.url))
+	    data = data.replace(/\nfeedback_url = null/,
+				"\nfeedback_url = \"" + x +
+				encodeURIComponent(course.name) +
+				"/\"");
+	return data;
+    };
+}
+
+function send_feedback_file(course, u, req, res) {
+    var filename = feedback_files[u.action], fc;
+    if (filename != "index.html" && u.pathname.match(/\/$/))
+	return redirect(u.action, u, req, res);
+    if (!/html$/.test(filename)) {
+	if (!(fc = file_cache[filename]))
+	    fc = file_cache[filename] = new FileCache(filename, "application/javascript");
+    } else {
+	if (!(fc = course.file_cache[filename]))
+	    fc = course.file_cache[filename] = new FileCache(filename, "text/html", make_course_translator(course));
+    }
+    fc.send(u, req, res);
 }
 
 function server_actions(course, u, req, res) {
