@@ -666,7 +666,7 @@ function hover_board_status(x, y) {
 function hover_board(e) {
     var b = $("#feedbackboard"), p = b.offset(),
         bw = b.width(), bh = b.height(),
-        x = e.pageX - p.left, y = e.pageY - p.top, t, b, body, i, j,
+        x = e.pageX - p.left, y = e.pageY - p.top, t, b, i, j,
 	hs = hover_board_status(x, y);
 
     if ((!hs && !boardinfo.hovers)
@@ -674,25 +674,27 @@ function hover_board(e) {
 	    && hs[1] == boardinfo.hovers[1]))
 	return;
 
+    boardinfo.hovers = null;
     $(".showquestion").remove();
-    if (!hs) {
-	boardinfo.hovers = null;
+
+    if (!hs)
 	return;
-    }
 
-    body = $(document);
-    t = $("<div class='showquestion' style='position:absolute;max-width:" +
-	  bw + "px;visibility:hidden;top:0;left:0'></div>");
-
-    t.append("<div class='qtail0'></div>");
     b = boardqs[hs[0]];
     for (i = j = 0; j < 3 && i < b.length; ++i) {
 	x = feedback_style(b[i]);
-	if (x[3]) {
-	    t.append($("<div class='q q" + j + "'></div>").text(x[3]));
-	    ++j;
+	if (!x[3])
+	    continue;
+	if (!t) {
+	    t = $("<div class='showquestion' style='position:absolute;max-width:" +
+		  bw + "px;visibility:hidden;top:0;left:0'></div>");
+	    t.append("<div class='qtail0'></div>");
 	}
+	t.append($("<div class='q q" + j + "'></div>").text(x[3]));
+	++j;
     }
+    if (!t)
+	return;
     t.append("<div class='qtail1'></div>");
     t.appendTo($("body"));
 
