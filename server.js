@@ -70,7 +70,9 @@ var feedback_files = {
     "board.html": "board.html",
     "feedback.js": "feedback.js",
     "jquery-1.8.2.min.js": "jquery-1.8.2.min.js",
-    "jquery.color-2.1.0.min.js": "jquery.color-2.1.0.min.js"
+    "jquery-1.9.0.min.js": "jquery-1.9.0.min.js",
+    "jquery.color-2.1.0.min.js": "jquery.color-2.1.0.min.js",
+    "jquery.color-2.1.1.min.js": "jquery.color-2.1.1.min.js"
 };
 
 

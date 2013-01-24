@@ -1,4 +1,4 @@
-(function () {
+johnkimble_load = (function () {
 
 var $ = jQuery;
 feedback_url = window.feedback_url || "";
@@ -737,34 +737,36 @@ function hover_board(e) {
 }
 
 
-if ($("#feedback_stop").length) {
-    $("#feedback_ok").click(function () { feedback("ok"); });
-    $("#feedback_stop").click(function () { feedback("stop"); });
-    $("#feedback_ask").click(function () { feedback_ask(); });
-    $("#feedback_ask_entry form").submit(function () { feedback_ask_ask(); return false; });
-    $("#feedback_cancel").click(function () { feedback("cancel"); });
-    $("#feedback_recaptcha").click(function (e) {
-	$(this).parents("form").submit();
-	e.preventDefault();
-    });
-    manage_lease(true);
-}
-if ($("#feedbackboard").length) {
-    setTimeout(getboard, 2);
-    $("#feedbackboard").mousemove(hover_board);
-}
-if (compact_window) {
-    $("#newwindowlink").hide();
-    if ($("#feedbackboard").length) {
-	$("#feedbackcontainer").css({position: "relative", overflow: "hidden"});
-	$("body").css({margin: 0});
-	$(window).resize(resize_feedbackboard);
-	setTimeout(resize_feedbackboard, 1);
+return function () {
+    if ($("#feedback_stop").length) {
+	$("#feedback_ok").click(function () { feedback("ok"); });
+	$("#feedback_stop").click(function () { feedback("stop"); });
+	$("#feedback_ask").click(function () { feedback_ask(); });
+	$("#feedback_ask_entry form").submit(function () { feedback_ask_ask(); return false; });
+	$("#feedback_cancel").click(function () { feedback("cancel"); });
+	$("#feedback_recaptcha").click(function (e) {
+	    $(this).parents("form").submit();
+	    e.preventDefault();
+	});
+	manage_lease(true);
     }
-} else
-    $("#newwindowlink").click(function () {
-	t = (this.href.match(/\?/) ? "&" : "?") + "neww=1";
-	window.open(this.href + t, "feedback61_window", "titlebar=no,dialog=yes,close=no,width=640,height=40");
-    });
+    if ($("#feedbackboard").length) {
+	setTimeout(getboard, 2);
+	$("#feedbackboard").mousemove(hover_board);
+    }
+    if (compact_window) {
+	$("#newwindowlink").hide();
+	if ($("#feedbackboard").length) {
+	    $("#feedbackcontainer").css({position: "relative", overflow: "hidden"});
+	    $("body").css({margin: 0});
+	    $(window).resize(resize_feedbackboard);
+	    setTimeout(resize_feedbackboard, 1);
+	}
+    } else
+	$("#newwindowlink").click(function () {
+	    t = (this.href.match(/\?/) ? "&" : "?") + "neww=1";
+	    window.open(this.href + t, "feedback61_window", "titlebar=no,dialog=yes,close=no,width=640,height=40");
+	});
+};
 
 })();
