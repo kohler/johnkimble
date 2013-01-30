@@ -39,7 +39,8 @@ var default_course_config = {
     auth_method: "recaptcha",
     jsontext: true,
     debug: false,
-    phantom_feedback_types: [0, "ok", "stop"]
+    phantom_feedback_types: [0, "ok", "stop"],
+    bowdlerizer: "XGIoZnVja3xidWxsc2hpdHQ/fHNoaXR0P3xhc3Nob2xlfGZ1Y2tlcnxjdW50KSg/PXN8aW5nfFxiKQ=="
 };
 var course_config = {
 };
@@ -227,6 +228,21 @@ function Course(name) {
     if (!(this.auth_method == "recaptcha" && this.auth
 	  && this.recaptcha_public && this.recaptcha_private))
 	this.auth = this.auth_method = false;
+    if (typeof this.bowdlerizer === "string") {
+	if (/^[A-Za-z0-9+\/=\s]+$/.test(this.bowdlerizer))
+	    this.bowdlerizer = new Buffer(this.bowdlerizer, "base64").toString();
+	this.bowdlerizer = new RegExp(this.bowdlerizer, "gi");
+    }
+    if (this.bowdlerizer && this.bowdlerizer instanceof RegExp)
+	this.bowdlerizer = make_bowdlerizer(this.bowdlerizer);
+    if (!this.bowdlerizer || typeof this.bowdlerizer !== "function")
+	this.bowdlerizer = function (s) { return s; };
+}
+
+function make_bowdlerizer(re) {
+    return function (s) {
+	return s.replace(re, "@#%!");
+    };
 }
 
 
@@ -579,7 +595,7 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	for (; i < qs.length; ++i)
 	    if ((s = this.s[qs[i][0]]) && s.at >= lease) {
 		j.qs = j.qs || [];
-		j.qs.push([s.ordinal, qs[i][1], qs[i][2]]);
+		j.qs.push([s.ordinal, qs[i][1], this.bowdlerizer(qs[i][2])]);
 	    }
     }
     return json_response(u, req, res, j);

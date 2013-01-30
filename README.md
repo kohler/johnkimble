@@ -185,6 +185,11 @@ extend(course_config, {
 
     Amount of time a question is guaranteed to stay in the system.
 
+* `bowdlerizer` (string, regular expression, or function)
+
+    Used to sanitize questions before sending them to the feedback
+    board. The default removes some English swears.
+
 #### Authentication options
 
 * `auth` (boolean or string, default: false)
