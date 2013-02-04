@@ -26,31 +26,63 @@ $.Color.names.orange = "#FFA500";
 $.Color.names.pink = "#FF69B4"; // actually "HotPink"
 
 
-function new_animator(f, interval_factor) {
+// Return a zero-argument function whose body calls `f(a1, a2, ...)`.
+function bind(f /* , a1, a2, ... */) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return function () {
+	return f.apply(null, args);
+    };
+}
+
+
+// Handles timer scheduling for animations. `f` is the callback function
+// called to draw the next step of the animation.
+function new_animation_timer(f, interval_factor) {
     var timeout = null, interval = null, now = null, next_expiry = null;
+    function timeout_f() {
+	timeout = null;
+	f();
+    }
     var a = {
 	interval: Math.min($.fx.interval * (interval_factor || 1), 100),
-	clear: function (n, from_timeout) {
-	    if (!from_timeout)
-		clearTimeout(timeout);
-	    timeout = null;
-	    now = n;
+	// Start the scheduling process. The current time is `t`.
+	start: function (t) {
+	    now = t;
 	    next_expiry = Infinity;
 	},
-	update_at: function (e) {
-	    if (e)
-		next_expiry = Math.min(next_expiry, Math.max(now + a.interval, e));
+	// Mark an animation step for time `t`.
+	schedule_at: function (t) {
+	    if (t)
+		next_expiry = Math.min(next_expiry,
+				       Math.max(now + a.interval, t));
 	},
-	go: function () {
+	// Calculate the transition color for the current time and return it.
+	// Also mark an animation step appropriately.
+	color_transition: function (/* color0, t0, color1, t1, ... */) {
+	    var i = 0, x = arguments;
+	    while (x[i + 2] && now >= x[i + 2])
+		i += 2;
+	    if (i == 0 && now < x[i]) {
+		a.schedule_at(x[i]);
+		return x[i + 1];
+	    } else if (!x[i + 2] || x[i + 1] == x[i + 3]) {
+		a.schedule_at(x[i + 2]);
+		return x[i + 1];
+	    } else {
+		a.schedule_at(now);
+		return x[i + 1].transition(x[i + 3], $.easing.swing((now - x[i]) / (x[i + 2] - x[i])));
+	    }
+	},
+	// Schedule an animation step for the minimum marked time since
+	// `start()` was called.
+	finish: function () {
+	    timeout && (clearTimeout(timeout), timeout = null);
 	    if (next_expiry > now + a.interval) {
-		if (interval) {
-		    clearInterval(interval);
-		    interval = null;
-		}
+		interval && (clearInterval(interval), interval = null);
 		if (next_expiry != Infinity)
-		    timeout = setTimeout(f, next_expiry - now, 1);
+		    timeout = setTimeout(timeout_f, next_expiry - now);
 	    } else
-		interval = interval || setInterval(f, a.interval, 0);
+		interval = interval || setInterval(f, a.interval);
 	}
     };
     return a;
@@ -64,24 +96,10 @@ function make_easing(start) {
     };
 }
 
-function colorat(now, animator /* ... */) {
-    var i = 2, x = arguments;
-    while (x[i + 2] && now >= x[i + 2])
-	i += 2;
-    if (!x[i + 2] || x[i + 1] == x[i + 3]) {
-	animator.update_at(x[i + 2]);
-	return x[i + 1];
-    } else {
-	animator.update_at(now);
-	return x[i + 1].transition(x[i + 3],
-				   $.easing.swing((now - x[i]) / (x[i + 2] - x[i])));
-    }
-}
-
-function draw_status(from_timeout) {
+function draw_status() {
     var now = (new Date).getTime() + clock_offset, s, e, active;
-    status_animator = status_animator || new_animator(draw_status);
-    status_animator.clear(now, from_timeout);
+    status_animator = status_animator || new_animation_timer(draw_status);
+    status_animator.start(now);
     for (s in statuses) {
 	e = $("#feedback_" + statuses[s]);
 	if (s == "ask" ? status.question_at : status.feedback == s) {
@@ -89,11 +107,10 @@ function draw_status(from_timeout) {
 	        t_pulse = t_start + pulse_duration,
 	        t_hold = t_start + status.hold_duration,
 	        t_end = t_start + status.duration;
-	    var c = colorat(now, status_animator,
-			    t_start, colors.pulse,
-			    t_pulse, colors[s].on,
-			    t_hold, colors[s].on,
-			    t_end, colors[s].off);
+	    var c = status_animator.color_transition(t_start, colors.pulse,
+						     t_pulse, colors[s].on,
+						     t_hold, colors[s].on,
+						     t_end, colors[s].off);
 	    e.css("backgroundColor", c);
 	} else if (status.lease)
 	    e.css("backgroundColor", colors[s].off);
@@ -102,29 +119,20 @@ function draw_status(from_timeout) {
     }
     if (status.lease)
 	$("#feedback_ask").toggle(status.ask);
-    status_animator.go();
+    status_animator.finish();
 }
 
-
-function make_function(f) {
-    if ($.isArray(f))
-	return function() {
-	    f[0].apply(null, f.slice(1));
-	};
-    else
-	return f;
-}
 
 function make_responder(retry, success) {
     var backoff = 0;
     return function(data) {
 	if (data.retry) {
-	    setTimeout(make_function(retry), backoff);
+	    setTimeout(retry, backoff);
 	    backoff = Math.min(Math.max(backoff * 2, 250), 30000);
 	} else if (data.auth)
-	    do_auth(data, make_function(retry));
+	    do_auth(data, retry);
 	else
-	    make_function(success)(data);
+	    success(data);
     };
 }
 
@@ -148,7 +156,7 @@ function do_auth(data, success) {
 
     if (!window.Recaptcha) {
 	$.getScript("http://www.google.com/recaptcha/api/js/recaptcha_ajax.js",
-		    make_function([do_auth, data, success]));
+		    bind(do_auth, data, success));
 	return;
     }
 
@@ -232,7 +240,7 @@ function feedback(type) {
     $.ajax({
 	url: feedback_url + "feedback/" + type,
 	type: "POST", dataType: "json", timeout: 3000,
-	success: make_responder([feedback, type], set_status),
+	success: make_responder(bind(feedback, type), set_status),
 	error: manage_lease,
 	xhrFields: {withCredentials: true}
     });
@@ -442,7 +450,7 @@ function feedback_style(sq, f, feedback_at, cutoff) {
     return style;
 }
 
-function draw_board(from_timeout) {
+function draw_board() {
     var e = $("#feedbackboard"), cv = e[0];
 
     // canvas-dependent sizes
@@ -484,8 +492,8 @@ function draw_board(from_timeout) {
     var i, j, s, ssize, sqs, r, x, y, overlap, f, style;
 
     // restart animator
-    board_animator = board_animator || new_animator(draw_board, 3);
-    board_animator.clear(now, from_timeout);
+    board_animator = board_animator || new_animation_timer(draw_board, 3);
+    board_animator.start(now);
 
     // calculate radii
     for (i in boardstatus.s) {
@@ -504,7 +512,7 @@ function draw_board(from_timeout) {
 	    if (s.emphasis > 1 && now < t_start + emphasis_duration) {
 		r = Math.min(maxrad, Math.sqrt(largerad * largerad * (s.emphasis + 1) / 2));
 		r += swing((now - t_start) / emphasis_duration) * (largerad - r);
-		board_animator.update_at(now);
+		board_animator.schedule_at(now);
 	    } else
 		r = largerad;
 
@@ -525,7 +533,7 @@ function draw_board(from_timeout) {
 	    }
 	    x = swing(Math.min(1, (now - ssize.at) / pulse_duration));
 	    r = ssize.lr + x * (r - ssize.lr);
-	    board_animator.update_at(now);
+	    board_animator.schedule_at(now);
 	} else
 	    ssize.gr = r;
 	ssize.r = r;
@@ -577,10 +585,8 @@ function draw_board(from_timeout) {
 		ctx.lineWidth = 3 - 2.5 * x;
 		style[1] = style[1].transition(colors.board0.offborder, x);
 	    }
-	    style[0] = colorat(now, board_animator,
-			       t_start, style[0],
-			       t_hold, style[0],
-			       t_end, colors.board0.off);
+	    style[0] = board_animator.color_transition(t_hold, style[0],
+						       t_end, colors.board0.off);
 	}
 
 	if (overlap[i]) {
@@ -609,7 +615,7 @@ function draw_board(from_timeout) {
     }
 
     // done
-    board_animator.go();
+    board_animator.finish();
 }
 
 var resize_feedbackboard = (function () {
