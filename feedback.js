@@ -35,7 +35,7 @@ function bind(f /* , a1, a2, ... */) {
 }
 
 
-// Handles timer scheduling for animations. `f` is the callback function
+// Timer scheduler for animations. `f` is the callback function
 // called to draw the next step of the animation.
 function new_animation_timer(f, interval_factor) {
     var timeout = null, interval = null, now = null, next_expiry = null;
@@ -53,8 +53,7 @@ function new_animation_timer(f, interval_factor) {
 	// Mark an animation step for time `t`.
 	schedule_at: function (t) {
 	    if (t)
-		next_expiry = Math.min(next_expiry,
-				       Math.max(now + a.interval, t));
+		next_expiry = Math.min(next_expiry, t);
 	},
 	// Calculate the transition color for the current time and return it.
 	// Also mark an animation step appropriately.
