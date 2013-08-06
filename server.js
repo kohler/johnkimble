@@ -1005,10 +1005,14 @@ function server(req, res) {
     if (opt.port || opt.p)
 	server_config.port = +(opt.port || opt.p);
 
+    server_config.opened_access_log = false;
     if (server_config.access_log == "ignore")
 	access_log = fs.createWriteStream("/dev/null", {flags: "a"});
-    else if (server_config.access_log && server_config.access_log != "inherit")
+    else if (server_config.access_log
+             && server_config.access_log != "inherit") {
+        server_config.opened_access_log = true;
 	access_log = fs.createWriteStream(server_config.access_log, {flags: "a"});
+    }
 })();
 
 (function () {
@@ -1020,9 +1024,13 @@ function server(req, res) {
 	}
     });
     s.listen(server_config.port, function () {
-	var now_s = log_format(get_now());
-	access_log.write(util.format("\n- - - [%s] \"START http://%s:%s/\" 0 0\n",
-				     now_s,
+        var now_s = log_format(get_now()), access_log_sep = "", stats;
+        if (server_config.opened_access_log
+            && (stats = fs.statSync(server_config.access_log))
+            && stats.isFile() && stats.size != 0)
+            access_log_sep = "\n";
+	access_log.write(util.format("%s- - - [%s] \"START http://%s:%s/\" 0 0\n",
+				     access_log_sep, now_s,
 				     server_config.host || "localhost",
 				     server_config.port));
 	console.warn("[%s] John Kimble server running at http://%s:%s/",
