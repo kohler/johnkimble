@@ -186,7 +186,7 @@ function do_auth(data, success) {
 }
 
 var manage_lease = (function () {
-    var backoff = 0, timeout = null;
+    var backoff = 0, timeout = null, login_success;
     function success(data) {
 	var lease = ($.isPlainObject(data) && data.lease)
 	    || (status && status.lease) || 0;
@@ -207,11 +207,11 @@ var manage_lease = (function () {
 	$.ajax({
 	    url: feedback_url + "login",
 	    type: "POST", dataType: "json", timeout: Math.max(backoff, 2000),
-	    success: make_responder(send_login, success),
-	    error: error,
+            success: login_success, error: error,
 	    xhrFields: {withCredentials: true}
 	});
     }
+    login_success = make_responder(send_login, success);
     return function (arg) {
 	if (timeout)
 	    clearTimeout(timeout);
