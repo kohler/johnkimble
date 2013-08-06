@@ -101,11 +101,12 @@ function http_read_body_form(u, req, complete) {
 }
 
 // Return the next user ID (a base64 string).
-next_id = (function () {
+var next_id;
+function make_next_id() {
     var id_buf = new Buffer(256), id_len = 6;
     id_buf.fill(0);
     id_buf.writeUInt32LE(server_id & 0x7FFFFFFF, 0);
-    return function () {
+    next_id = function () {
 	var i = 4;
 	do {
 	    ++id_buf[i], ++i;
@@ -114,7 +115,7 @@ next_id = (function () {
 	} while (id_buf[i - 1] == 0);
 	return id_buf.toString("base64", 0, id_len);
     };
-})();
+}
 
 
 // LOGGING AND RESPONSES
@@ -994,6 +995,8 @@ function server(req, res) {
     }
 
     server_id = Math.floor(get_now() / 1000 - 1000000000);
+    make_next_id();
+
     if ((x = opt["init-file"] || opt.f))
 	eval(fs.readFileSync(x, "utf8"));
     else if (!opt["no-init-file"] && fs.existsSync("serverconfig.js"))
