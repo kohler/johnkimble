@@ -88,6 +88,15 @@ load; for instance, `node server.js --init-file=FILE`.
     `server_config.hmac_key` to a stable value, then cookies from one
     server run can be accepted by a later server run.
 
+* `proxy` (boolean, default: true)
+
+    Check for common proxy headers. If the connection has no remote
+    address, and `server_config.proxy` is true, then John Kimble will
+    use any `X-Forwarded-For` header to determine the client's
+    address. If `proxy` is a string, it should be a string or regular
+    expression, such as `/^127.0.0.1$/`; John Kimble will only use
+    proxy headers when the remote host matches that address.
+
 ### Course configuration options
 
 Course configuration options may be set in `default_course_config` or

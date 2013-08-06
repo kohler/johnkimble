@@ -13,7 +13,8 @@ function extend(dst, src) {
 var server_config = {
     port: 6169,
     access_log: "access.log",
-    error_log: "error.log"
+    error_log: "error.log",
+    proxy: true
 };
 var default_course_config = {
     title: null,
@@ -136,7 +137,7 @@ function log_format(now) {
 function end_and_log(u, req, res, data) {
     res.end(data);
     access_log.write(util.format("%s %s - [%s] \"%s %s HTTP/%s\" %d %s\n",
-				 req.connection.remoteAddress,
+				 u.remoteAddress,
 				 u.cookie ? u.cookie.id : "-",
 				 log_format(u.now),
 				 req.method, u.pathname, req.httpVersion,
@@ -481,7 +482,7 @@ Course.prototype.handle_auth = function(u, req, res) {
 	});
 	recaptcha_req.write(querystring.stringify({
 	    privatekey: self.recaptcha_private,
-	    remoteip: req.connection.remoteAddress,
+	    remoteip: u.remoteAddress,
 	    challenge: challenge,
 	    response: response
 	}));
@@ -941,8 +942,19 @@ function server_actions(course, u, req, res) {
 }
 
 function server(req, res) {
-    var u = url.parse(req.url, true);
+    var u = url.parse(req.url, true), m;
     u.now = get_now();
+
+    u.remoteAddress = req.connection.remoteAddress;
+    if (server_config.proxy && req.headers["x-forwarded-for"]
+        && (server_config.proxy === true
+            || (server_config.proxy.toLowerCase
+                ? server_config.proxy == u.remoteAddress
+                : server_config.proxy.test(u.remoteAddress)))) {
+        u.proxied = true;
+        if ((m = req.headers["x-forwarded-for"].match(/.*?([^\s,]*)[\s,]*$/)))
+            u.remoteAddress = m[1];
+    }
 
     var m = u.pathname.match(/^\/([^\/]+)(\/[^\/]+)?(\/.*)?$/);
     if (!m || m[1][0] == "_")
