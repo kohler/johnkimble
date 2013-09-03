@@ -584,9 +584,11 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	s = this.os[i];
 	if (!s || s.at < lease)
 	    /* do nothing */;
-	else if (s.feedback && s.feedback_at >= timeout) {
+	else if ((s.feedback && s.feedback_at >= timeout) || s.style) {
 	    j.s[i] = {feedback: s.feedback, emphasis: s.emphasis,
 		      feedback_at: s.feedback_at};
+            if (s.style)
+                j.s[i].style = s.style;
 	    j.nfeedback[s.feedback] = (j.nfeedback[s.feedback] || 0) + 1;
 	} else {
 	    j.s[i] = {};
@@ -653,9 +655,14 @@ function gc_questions(qs, timeout) {
 }
 
 Course.prototype.ask_question = function(s, question, now) {
-    var qs = this.qs;
+    var qs = this.qs, m;
     if (qs.length == this.question_capacity)
 	gc_questions(qs, now - this.question_timeout);
+    if (question.charAt(0) == "{"
+        && (m = question.match(/^\{\s*style\b\s*(.*?)\}(.*)/i))) {
+        s.style = m[1];
+        question = m[2];
+    }
     qs.push([s.id, Math.max(this.updated_at + 1, now), question]);
     s.at = s.q_at = now;
     this.update = true;

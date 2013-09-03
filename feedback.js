@@ -252,8 +252,8 @@ function feedback_ask() {
 }
 
 function feedback_ask_ask() {
-    var s;
-    if ((s = $("#feedback_ask_q").val()))
+    var s, m;
+    if ((s = $("#feedback_ask_q").val())) {
 	$.ajax({
 	    url: feedback_url + "ask", data: {q: s},
 	    type: "POST", dataType: "json", timeout: 3000,
@@ -261,6 +261,9 @@ function feedback_ask_ask() {
 	    error: function () { feedback_ask_done(null); manage_lease(); },
 	    xhrFields: {withCredentials: true}
 	});
+        if ((m = s.match(/^\{\s*style(?:\s+.*?|)\}(.*)/)))
+            $("#feedback_ask_q").val(m[1]);
+    }
 }
 
 function feedback_ask_done(data) {
@@ -433,8 +436,16 @@ function make_boardcolorre() {
     return new RegExp(t + ")", "i");
 }
 
-function feedback_style(sq, f, feedback_at, cutoff) {
+function feedback_style(s, sq, f, feedback_at, cutoff) {
     var m, a, b, i, shape, style = [];
+
+    if (s && s.style) {
+        sq = sq || [cutoff, ""];
+        if (sq[1].charAt(0) == "{" && (m = sq[1].match(/^\{\s*(.*?)\}(.*)$/)))
+            sq[1] = "{" + s.style + " " + m[1] + "}" + m[2];
+        else
+            sq[1] = "{" + s.style + "}" + sq[1];
+    }
 
     if (sq && sq[0] >= (cutoff || 0) && sq[1].charAt(0) == "{"
 	&& (m = sq[1].match(/^\{(.*?)\}(.*)$/))) {
@@ -450,7 +461,7 @@ function feedback_style(sq, f, feedback_at, cutoff) {
 		}
 	    } else if (a[i] in feedback_shapes)
 		style[2] = feedback_shapes[a[i]];
-	    else
+	    else if (a[i] != "style")
 		b.push(a[i]);
 
 	if (b.length)
@@ -464,7 +475,7 @@ function feedback_style(sq, f, feedback_at, cutoff) {
     if (!style[0])
 	style[0] = colors[f].on;
     if (!style[1])
-	style[1] = colors[f].onborder;
+	style[1] = colors[f].onborder || style[0];
     return style;
 }
 
@@ -589,12 +600,12 @@ function draw_board() {
 	}
 	t_end = t_start + duration;
 
-	if (f == "0" || now >= t_end) {
+	if ((f == "0" || now >= t_end) && !s.style) {
 	    ctx.lineWidth = 0.5;
 	    style = default_style;
 	} else {
 	    t_hold = t_start + hold_duration;
-	    style = feedback_style(sqs && sqs[0], f, t_start,
+	    style = feedback_style(s, sqs && sqs[0], f, t_start,
 				   now - duration);
 	    if (now <= t_hold)
 		ctx.lineWidth = 3;
@@ -688,7 +699,7 @@ function hover_board_status(x, y) {
 }
 
 function hover_board(e) {
-    var b = $("#feedbackboard"), p = b.offset(),
+    var b = $("#feedbackboard"), p = b.offset(), s,
         bw = b.width(), bh = b.height(),
         x = e.pageX - p.left, y = e.pageY - p.top, t, b, i, j,
 	hs = hover_board_status(x, y);
@@ -705,8 +716,9 @@ function hover_board(e) {
 	return;
 
     b = boardqs[hs[0]];
+    s = boardstatus.s[hs[0]];
     for (i = j = 0; j < 3 && i < b.length; ++i) {
-	x = feedback_style(b[i]);
+	x = feedback_style(s, b[i]);
 	if (!x[3])
 	    continue;
 	if (!t) {
