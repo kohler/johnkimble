@@ -743,31 +743,36 @@ function FileCache(filename, content_type, translator) {
     this.filename = filename;
     this.content_type = content_type;
     this.data = null;
-    this.translator = translator || (function (x) { return x; });
+    this.translator = translator || (function (req, data) { return data; });
     this.callbacks = [];
 }
 
 (function () {
+function fc_postread(fc, stat) {
+    return function (err, data) {
+        fc.data = fc.translator.call(fc, null, data);
+        fc.stat = stat;
+        fc.gzip = fc.deflate = null;
+        var cbs = fc.callbacks;
+        fc.callbacks = [];
+	for (var i = 0; i < cbs.length; ++i)
+	    cbs[i].call(fc, fc.data);
+    };
+}
+
+
 function fc_read(fc, cb) {
     if (fc.callbacks.length)
 	fc.callbacks.push(cb);
     else {
-	var stat = fs.statSync(fc.filename);
+	var stat = fs.statSync(fc.filename), data;
 	if (fc.data && stat.ino == fc.stat.ino
 	    && stat.mtime.getTime() == fc.stat.mtime.getTime())
 	    cb.call(fc, fc.data);
 	else {
 	    fc.callbacks.push(cb);
-	    fs.readFile(fc.filename, "utf8", function (err, data) {
-		fc.data = fc.translator.call(fc, data);
-		fc.stat = stat;
-		fc.gzip = fc.deflate = null;
-		var cbs = fc.callbacks;
-		fc.callbacks = [];
-		for (var i = 0; i < cbs.length; ++i)
-		    cbs[i].call(fc, fc.data);
-	    });
-	}
+	    fs.readFile(fc.filename, "utf8", fc_postread(fc, stat));
+        }
     }
 }
 
@@ -775,14 +780,18 @@ FileCache.prototype.read = function (cb) {
     fc_read(this, cb);
 };
 
-FileCache.prototype.compress = function (encoding, cb) {
-    var fc = this, zlib;
+FileCache.prototype.compress = function (encoding, req, cb) {
+    var fc = this, zlib, data;
     if (this[encoding] || !this.data)
-	cb.call(this, this[encoding] || null);
+	cb.call(this, this[encoding] || "");
     else {
 	zlib = require("zlib");
-	zlib[encoding](this.data, function (err, data) {
-	    fc[encoding] = data;
+        data = this.data;
+        if (this.translator.live)
+            data = this.translator.call(this, req, data);
+	zlib[encoding](data, function (err, data) {
+            if (!fc.translator.live)
+	        fc[encoding] = data;
 	    cb.call(fc, data);
 	});
     }
@@ -790,7 +799,7 @@ FileCache.prototype.compress = function (encoding, cb) {
 
 function make_compress_cb(encoding, u, req, res) {
     return function (data) {
-	this.compress(encoding, function (data) {
+	this.compress(encoding, req, function (data) {
 	    res.writeHead(200, {
 		"Content-Type": this.content_type,
 		"Content-Length": data.length,
@@ -819,6 +828,8 @@ function make_send_cb(u, req, res) {
 	}
     }
     return function (data) {
+        if (this.translator.live)
+            data = this.translator.call(this, req, data);
 	res.writeHead(200, {
 	    "Content-Type": this.content_type,
 	    "Content-Length": Buffer.byteLength(data)
@@ -834,13 +845,16 @@ FileCache.prototype.send = function(u, req, res) {
 })();
 
 function make_course_translator(course) {
-    return function (data) {
-	var x = course.board_title || (course.title && (course.title + " Feedback Board"));
-	if (x)
-	    data = data.replace(/John Kimble Feedback Board/g, x);
-	x = course.feedback_title || (course.title && (course.title + " Feedback"));
-	if (x)
-	    data = data.replace(/John Kimble Feedback/g, x);
+    var f = function (req, data) {
+	var x;
+        if (!req) {
+            x = course.board_title || (course.title && (course.title + " Feedback Board"));
+	    if (x)
+	        data = data.replace(/John Kimble Feedback Board/g, x);
+	    x = course.feedback_title || (course.title && (course.title + " Feedback"));
+	    if (x)
+	        data = data.replace(/John Kimble Feedback/g, x);
+        }
 	if ((x = course.url))
 	    data = data.replace(/\nfeedback_url = null/,
 				"\nfeedback_url = \"" + x +
@@ -848,6 +862,7 @@ function make_course_translator(course) {
 				"/\"");
 	return data;
     };
+    return f;
 }
 
 function send_feedback_file(course, u, req, res) {
