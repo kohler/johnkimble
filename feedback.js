@@ -13,12 +13,12 @@ var compact_window = !!window.location.search.match(/[?&]neww=1/);
 var colors = {
     pulse: $.Color("#ffff00"),
     board0: {off: $.Color("#ffffff"), offborder: $.Color("#778ee9")},
-    "0": {off: $.Color("#ded4c3"), on: $.Color("#ded4c3")},
-    ok: {off: $.Color("#ded4c3"), on: $.Color("#00ed2d"),
+    "0": {off: $.Color("#f0e5d3"), on: $.Color("#ded4c3")},
+    ok: {off: $.Color("#f0e5d3"), on: $.Color("#00ed2d"),
 	 onborder: $.Color("#008800")},
-    stop: {off: $.Color("#ded4c3"), on: $.Color("#ff0000"),
+    stop: {off: $.Color("#f0e5d3"), on: $.Color("#ff0000"),
 	   onborder: $.Color("#880000")},
-    ask: {off: $.Color("#ded4c3"), on: $.Color("#86bbee"),
+    ask: {off: $.Color("#f0e5d3"), on: $.Color("#86bbee"),
 	  onborder: $.Color("#778ee9"), inset: $.Color("#2089ee").alpha(0.7)}
 };
 var default_style = [colors.board0.off, colors.board0.offborder];
