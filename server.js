@@ -71,10 +71,13 @@ var feedback_files = {
     "board": "board.html",
     "board.html": "board.html",
     "feedback.js": "feedback.js",
-    "jquery-1.8.2.min.js": "jquery-1.8.2.min.js",
-    "jquery-1.9.0.min.js": "jquery-1.9.0.min.js",
-    "jquery.color-2.1.0.min.js": "jquery.color-2.1.0.min.js",
-    "jquery.color-2.1.1.min.js": "jquery.color-2.1.1.min.js"
+    "jquery-1.8.2.min.js": "jquery-1.10.2.min.js",
+    "jquery-1.9.0.min.js": "jquery-1.10.2.min.js",
+    "jquery-1.10.2.min.js": "jquery-1.10.2.min.js",
+    "jquery-1.10.2.min.map": "jquery-1.10.2.min.map",
+    "jquery.color-2.1.0.min.js": "jquery.color-2.1.2.min.js",
+    "jquery.color-2.1.1.min.js": "jquery.color-2.1.2.min.js",
+    "jquery.color-2.1.2.min.js": "jquery.color-2.1.2.min.js"
 };
 var file_cache = {
 };
