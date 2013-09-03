@@ -317,7 +317,7 @@ function store_board(data) {
 
 var feedback_shapes = (function () {
     var pi = Math.PI, cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt,
-        max = Math.max;
+        max = Math.max, atan2 = Math.atan2;
 
     function pen(ctx, x, y, r, min_r) {
 	var op = "moveTo";
@@ -326,6 +326,13 @@ var feedback_shapes = (function () {
 	    ctx[op](x + dr * cos(a), y - dr * sin(a));
 	    op = "lineTo";
 	};
+    }
+
+    function cartesian_pen(ctx, x, y, r, min_r) {
+        var p = pen(ctx, x, y, r, min_r);
+        return function (dx, dy) {
+            p(sqrt(dx*dx + dy*dy), atan2(dy, dx));
+        };
     }
 
     function make_polygon(dr, start, n) {
@@ -378,6 +385,19 @@ var feedback_shapes = (function () {
 	}
     }
 
+    function draw_t(ctx, x, y, r, min_r) {
+	var p = cartesian_pen(ctx, x, y, r, min_r);
+        p(-0.93, 0.98);
+        p(0.93, 0.98);
+        p(0.93, 0.29);
+        p(0.38, 0.29);
+        p(0.38, -0.98);
+        p(-0.38, -0.98);
+        p(-0.38, 0.29);
+        p(-0.93, 0.29);
+        ctx.closePath();
+    }
+
     return {
 	circle: null,
 	square: make_polygon(sqrt(pi/2), pi/4, 4),
@@ -399,7 +419,9 @@ var feedback_shapes = (function () {
 	e: make_arrow(0),
 	ne: make_arrow(pi/4),
 	x: draw_x,
-	o: draw_o
+	o: draw_o,
+        t: draw_t,
+        tee: draw_t
     };
 })();
 
