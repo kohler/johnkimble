@@ -231,11 +231,8 @@ function set_status(data) {
 }
 
 function feedback(type) {
-    if (feedback_asking) {
+    if (feedback_asking)
 	feedback_ask_done(null);
-	if (type == "cancel")
-	    return;
-    }
     $.ajax({
 	url: feedback_url + "feedback/" + type,
 	type: "POST", dataType: "json", timeout: 3000,
