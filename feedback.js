@@ -164,12 +164,12 @@ function do_auth(data, success) {
 	j.attr({action: feedback_url + "auth", auth_installed: true})
 	.submit(function (e) {
 	    $.ajax({
-		url: feedback_url + "auth?ajax=true",
-		type: "POST", dataType: "json",
+		url: feedback_url + "auth?ajax=true", cache: false,
 		data: {
 		    recaptcha_challenge_field: Recaptcha.get_challenge(),
 		    recaptcha_response_field: Recaptcha.get_response()
 		},
+		type: "POST", dataType: "json",
 		success: make_auth_responder(success),
 		xhrFields: {withCredentials: true}
 	    });
@@ -205,7 +205,7 @@ var manage_lease = (function () {
     function send_login() {
 	timeout = null;
 	$.ajax({
-	    url: feedback_url + "login",
+	    url: feedback_url + "login", cache: false, data: "",
 	    type: "POST", dataType: "json", timeout: Math.max(backoff, 2000),
             success: login_success, error: error,
 	    xhrFields: {withCredentials: true}
@@ -234,7 +234,7 @@ function feedback(type) {
     if (feedback_asking)
 	feedback_ask_done(null);
     $.ajax({
-	url: feedback_url + "feedback/" + type,
+	url: feedback_url + "feedback/" + type, cache: false, data: "",
 	type: "POST", dataType: "json", timeout: 3000,
 	success: make_responder(bind(feedback, type), set_status),
 	error: manage_lease,
@@ -255,7 +255,7 @@ function feedback_ask_ask() {
     var s, m;
     if ((s = $("#feedback_ask_q").val())) {
 	$.ajax({
-	    url: feedback_url + "ask", data: {q: s},
+	    url: feedback_url + "ask", cache: false, data: {q: s},
 	    type: "POST", dataType: "json", timeout: 3000,
 	    success: make_responder(feedback_ask_ask, feedback_ask_done),
 	    error: function () { feedback_ask_done(null); manage_lease(); },
@@ -282,15 +282,16 @@ function feedback_ask_done(data) {
 
 
 function getboard() {
+    var polltime = (boardbackoff ? 0 : boardstatus.updated_at || 0);
     $.ajax({
-	url: feedback_url + "panel?poll=" + (boardstatus.updated_at || 0),
-	type: "GET", dataType: "json",
+	url: feedback_url + "panel?poll=" + polltime, cache: false, data: "",
+	type: "GET", dataType: "json", cache: false,
 	success: store_board,
-	error: function () {
+	error: function (xhr, status, http_error) {
 	    setTimeout(getboard, boardbackoff);
 	    boardbackoff = Math.min(Math.max(boardbackoff * 2, 250), 30000);
 	},
-	xhrFields: {withCredentials: true}
+        xhrFields: {withCredentials: true}
     });
 }
 
