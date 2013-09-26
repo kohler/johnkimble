@@ -472,7 +472,8 @@ function feedback_style(s, sq, f, feedback_at, cutoff) {
     } else if (sq)
 	style[3] = sq[1];
 
-    f = f || "0";
+    if (!f || !colors[f])
+        f = "0";
     if (!style[0])
 	style[0] = colors[f].on;
     if (!style[1])
