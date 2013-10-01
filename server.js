@@ -14,6 +14,7 @@ var server_config = {
     port: 6169,
     access_log: "access.log",
     error_log: "error.log",
+    access_log_query: true,
     proxy: true
 };
 var default_course_config = {
@@ -139,12 +140,22 @@ function log_format(now) {
 }
 
 function end_and_log(u, req, res, data) {
+    var path = u.pathname, parts, t;
+    if (server_config.access_log_query) {
+        parts = [];
+        if (u.query && (t = querystring.stringify(u.query)))
+            parts.push(t);
+        if (u.body && u.body != u.query && (t = querystring.stringify(u.body)))
+            parts.push(t);
+        if (parts.length)
+            path += "?" + parts.join("&");
+    }
     res.end(data);
     access_log.write(util.format("%s %s - [%s] \"%s %s HTTP/%s\" %d %s\n",
 				 u.remoteAddress,
 				 u.cookie ? u.cookie.id : "-",
 				 log_format(u.now),
-				 req.method, u.pathname, req.httpVersion,
+				 req.method, path, req.httpVersion,
 				 res.statusCode, data.length));
 }
 
@@ -1008,7 +1019,9 @@ function server(req, res) {
 // INITIALIZATION
 
 (function () {
-    var needargs = {port: 1, p: 1, "init-file": 1, f: 1}, opt = {}, i, x, m;
+    var needargs = {
+        port: 1, p: 1, "init-file": 1, f: 1, "access-log": 1, "error-log": 1
+    }, opt = {}, i, x, m, access_log_name, error_log_name;
     for (var i = 2; i < process.argv.length; ++i) {
 	if ((m = process.argv[i].match(/^--([^=]*)(=.*)?$/)))
 	    m[2] = m[2] ? m[2].substr(1) : null;
@@ -1027,16 +1040,21 @@ function server(req, res) {
     else if (!opt["no-init-file"] && fs.existsSync("serverconfig.js"))
 	eval(fs.readFileSync("serverconfig.js", "utf8"));
 
+    access_log_name = opt["access-log"] || server_config.access_log;
+    if (access_log_name == "-" || access_log_name == "stdout")
+        access_log_name = "inherit";
+    error_log_name = opt["error-log"] || server_config.error_log;
+
     if (!opt.fg) {
-	if (server_config.access_log != "ignore" && server_config.access_log != "inherit")
-	    server_config.access_log = "ignore";
-	if (server_config.error_log != "ignore" && server_config.error_log != "inherit")
-	    server_config.error_log = fs.openSync(server_config.error_log, "a");
+	if (access_log_name != "ignore" && access_log_name != "inherit")
+	    access_log_name = "ignore";
+	if (error_log_name != "ignore" && error_log_name != "inherit")
+	    error_log_name = fs.openSync(error_log_name, "a");
 	require("child_process").spawn(process.argv[0],
 				       process.argv.slice(1).concat(["--fg", "--nohup"]),
 				       {stdio: ["ignore",
-						server_config.access_log,
-						server_config.error_log],
+                                                access_log_name,
+                                                error_log_name],
 					detached: true});
 	process.exit();
     }
@@ -1046,12 +1064,11 @@ function server(req, res) {
 	server_config.port = +(opt.port || opt.p);
 
     server_config.opened_access_log = false;
-    if (server_config.access_log == "ignore")
+    if (access_log_name == "ignore")
 	access_log = fs.createWriteStream("/dev/null", {flags: "a"});
-    else if (server_config.access_log
-             && server_config.access_log != "inherit") {
+    else if (access_log_name && access_log_name != "inherit") {
         server_config.opened_access_log = true;
-	access_log = fs.createWriteStream(server_config.access_log, {flags: "a"});
+	access_log = fs.createWriteStream(access_log_name, {flags: "a"});
     }
 })();
 

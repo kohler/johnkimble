@@ -74,7 +74,12 @@ load; for instance, `node server.js --init-file=FILE`.
 
     The `V8AGFQYC` portion is a user ID.
 
-    John Kimble never rotates log files.
+    John Kimble does not rotate log files.
+
+* `access_log_query` (boolean, default: true)
+
+    If true, then the access log will report request parameters, such as
+    the questions provided to “Ask”.
 
 * `error_log` (string, default: `"error.log"`)
 
