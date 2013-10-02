@@ -138,6 +138,14 @@ extend(course_config, {
     tags. Defaults to `TITLE Feedback Board`, where `TITLE` is the
     `title` configuration option.
 
+* `password` (string)
+
+    Course password. Set this to enable “probation” (control- or
+    option-clicking on a location in the feedback board will put that
+    student on probation and hide their questions and feedback for one
+    minute). Only users who know the password can put students on
+    probation.
+
 #### Capacity options
 
 * `capacity` (integer, default: 1000)
