@@ -595,7 +595,8 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	s = this.os[i];
 	if (!s || s.at < lease)
 	    /* do nothing */;
-	else if ((s.feedback && s.feedback_at >= timeout) || s.style) {
+	else if (((s.feedback && s.feedback_at >= timeout) || s.style)
+                 && (!s.probation_until || s.probation_until < now)) {
 	    j.s[i] = {feedback: s.feedback, emphasis: s.emphasis,
 		      feedback_at: s.feedback_at};
             if (s.style)
@@ -619,6 +620,23 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
     return json_response(u, req, res, j);
 };
 
+Course.prototype.probation = function(u, req, res) {
+    var self = this;
+    function complete() {
+        if (typeof(u.body.s) == "string" && self.os[u.body.s]) {
+            self.os[u.body.s].probation_until = u.now + 60000;
+            self.finish_update(u.now);
+            json_response(u, req, res, {ok: true, probation_time: 60000});
+        } else
+            json_response(u, req, res, {error: "no such student"});
+    }
+    if (u.query.s) {
+        u.body = u.query;
+        complete();
+    } else
+        http_read_body_form(u, req, complete);
+};
+
 
 // ACTIONS
 
@@ -635,7 +653,8 @@ Course.prototype.feedback = function(s, f, now) {
 	delete s.q_at;
 	this.qs.push([s.id, Math.max(this.updated_at + 1, now), ""]);
     }
-    this.update = true;
+    if (!s.probation_until || s.probation_until < now)
+        this.update = true;
 };
 
 function gc_questions(qs, timeout) {
@@ -676,7 +695,8 @@ Course.prototype.ask_question = function(s, question, now) {
     }
     qs.push([s.id, Math.max(this.updated_at + 1, now), question]);
     s.at = s.q_at = now;
-    this.update = true;
+    if (!s.probation_until || s.probation_until < now)
+        this.update = true;
 };
 
 Course.prototype.ask_request = function(s, u, req, res) {
@@ -931,6 +951,9 @@ function server_actions(course, u, req, res) {
     // big board
     if (u.action == "panel")
 	return course.panel(u, req, res, true);
+    // put people on probation
+    if (u.action == "probation" && req_post)
+        return course.probation(u, req, res);
 
     // debugging report, add phantom users
     if (u.action == "debug" && course.debug)
@@ -951,7 +974,7 @@ function server_actions(course, u, req, res) {
     if (course.need_auth(u.action, s && s.auth_at, u.now))
 	return course.auth_json_response(u, req, res);
 
-    // require POST
+    // actions below here are per student; require POST
     if (!req_post)
 	return json_response(u, req, res, {error: "unknown GET request"});
     if (!(s = s || course.ensure_user(u.cookie.id, u.now)))

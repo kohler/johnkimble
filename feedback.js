@@ -305,9 +305,12 @@ function getboard() {
 function store_board(data) {
     board_outstanding = false;
     board_backoff = 0;
+
+    // save status
     boardstatus = data;
     clock_offset = data.now - (new Date).getTime();
 
+    // remove old questions that don't have current students
     var i, q, qs, x = {};
     for (i in boardqs)
 	if (!(i in boardstatus.s))
@@ -315,6 +318,7 @@ function store_board(data) {
     for (i in x)
 	delete boardqs[i];
 
+    // add remaining questions
     if ((qs = data.qs))
 	for (i = 0; i < qs.length; ++i) {
 	    q = qs[i];
@@ -697,14 +701,15 @@ function hover_board_status(x, y) {
     if (x < xb || y < yb || x >= xb + na * cs)
 	return null;
     i = Math.floor((x - xb) / cs) + Math.floor((y - yb) / cs) * na;
-    if (!(q = boardqs[i]))
-	return null;
+    if (!boardstatus.s[i])
+        return null;
     xc = xb + (i % na + 0.5) * cs;
     yc = yb + (Math.floor(i / na) + 0.5) * cs;
     r = Math.sqrt((xc - x) * (xc - x) + (yc - y) * (yc - y));
     if (r > boardsizes[i].r + 2)
 	return null;
-    return {"0": i, "1": q[0][0], x: xc, y: yc};
+    q = boardqs[i];
+    return {i: i, q: q ? q[0][0] : null, x: xc, y: yc};
 }
 
 function hover_board(e) {
@@ -713,19 +718,15 @@ function hover_board(e) {
         x = e.pageX - p.left, y = e.pageY - p.top, t, b, i, j,
 	hs = hover_board_status(x, y);
 
-    if ((!hs && !boardinfo.hovers)
-	|| (hs && boardinfo.hovers && hs[0] == boardinfo.hovers[0]
-	    && hs[1] == boardinfo.hovers[1]))
+    if (boardinfo.hovers && boardinfo.hovers.q
+        && (!hs || hs.i != boardinfo.hovers.i || hs.q != boardinfo.hovers.q))
+        $(".showquestion").remove();
+    boardinfo.hovers = hs;
+    if (!hs || !hs.q)
 	return;
 
-    boardinfo.hovers = null;
-    $(".showquestion").remove();
-
-    if (!hs)
-	return;
-
-    b = boardqs[hs[0]];
-    s = boardstatus.s[hs[0]];
+    b = boardqs[hs.i];
+    s = boardstatus.s[hs.i];
     for (i = j = 0; j < 3 && i < b.length; ++i) {
 	x = feedback_style(s, b[i]);
 	if (!x[3])
@@ -779,8 +780,17 @@ function hover_board(e) {
 	t.find(".qtail0, .qtail1").css({left: spl});
     }
     t.css({visibility: "visible", left: p.left + x, top: p.top + y});
+}
 
-    boardinfo.hovers = hs;
+function click_board(e) {
+    hover_board(e);
+    console.log([e, boardinfo.hovers]);
+    if (e.button == 0 && (e.ctrlKey || e.altKey) && boardinfo.hovers)
+	$.ajax({
+	    url: feedback_url + "probation", cache: false, data: {s: boardinfo.hovers.i},
+	    type: "POST", dataType: "json", timeout: 3000,
+	    xhrFields: {withCredentials: true}
+	});
 }
 
 
@@ -800,7 +810,7 @@ return function () {
     if ($("#feedbackboard").length) {
 	setTimeout(getboard, 2);
         setInterval(getboard, 10000); // keep board running in case of exception
-	$("#feedbackboard").mousemove(hover_board);
+	$("#feedbackboard").mousemove(hover_board).click(click_board);
     }
     if (compact_window) {
 	$("#newwindowlink").hide();
