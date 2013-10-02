@@ -7,8 +7,9 @@ var feedback_asking = false;
 var clock_offset = 0;
 var statuses = {"0": "cancel", ok: "ok", stop: "stop", ask: "ask"};
 var pulse_duration = 150;
-var boardstatus = {}, boardsizes = {}, boardbackoff = 0,
-    boardqs = {}, boardinfo = {}, boardcolorre = null;
+var boardstatus = {}, boardsizes = {},
+    boardqs = {}, boardinfo = {}, boardcolorre = null,
+    board_outstanding = false, board_backoff = 0, board_backoffuntil = 0;
 var compact_window = !!window.location.search.match(/[?&]neww=1/);
 var colors = {
     pulse: $.Color("#ffff00"),
@@ -282,25 +283,32 @@ function feedback_ask_done(data) {
 
 
 function getboard() {
-    var polltime = (boardbackoff ? 0 : boardstatus.updated_at || 0);
+    var now = (new Date).getTime(), polltime;
+    if (board_outstanding || board_backoffuntil > now)
+        return;
+    polltime = (board_backoff ? 0 : boardstatus.updated_at || 0);
+    board_outstanding = true;
     $.ajax({
 	url: feedback_url + "panel?poll=" + polltime, cache: false, data: "",
-	type: "GET", dataType: "json", cache: false,
+	type: "GET", dataType: "json",
 	success: store_board,
 	error: function (xhr, status, http_error) {
-	    setTimeout(getboard, boardbackoff);
-	    boardbackoff = Math.min(Math.max(boardbackoff * 2, 250), 30000);
+	    setTimeout(getboard, board_backoff);
+            board_outstanding = false;
+	    board_backoff = Math.min(Math.max(board_backoff * 2, 250), 30000);
+            board_backoffuntil = (new Date).getTime() + board_backoff;
 	},
         xhrFields: {withCredentials: true}
     });
 }
 
 function store_board(data) {
-    var i, q, qs, x;
+    board_outstanding = false;
+    board_backoff = 0;
     boardstatus = data;
     clock_offset = data.now - (new Date).getTime();
 
-    x = {};
+    var i, q, qs, x = {};
     for (i in boardqs)
 	if (!(i in boardstatus.s))
 	    x[i] = 1;
@@ -315,7 +323,6 @@ function store_board(data) {
 	}
 
     draw_board(0);
-    boardbackoff = 0;
     getboard();
 }
 
@@ -792,6 +799,7 @@ return function () {
     }
     if ($("#feedbackboard").length) {
 	setTimeout(getboard, 2);
+        setInterval(getboard, 10000); // keep board running in case of exception
 	$("#feedbackboard").mousemove(hover_board);
     }
     if (compact_window) {
