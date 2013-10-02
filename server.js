@@ -229,6 +229,7 @@ function Course(name) {
     this.port = server_config.port;
     this.hmac_key = server_config.hmac_key + name;
     this.file_cache = {};
+    this.panel_auth = {};
     for (i in default_course_config)
 	this[i] = default_course_config[i];
     for (i in course_config[name] || {})
@@ -628,10 +629,28 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
     return json_response(u, req, res, j);
 };
 
+function probation_auth_response(u, req, res, password_failed) {
+    j = {panel_auth: true, error: (password_failed ? "bad password" : "need course password")};
+    if (password_failed)
+        j.panel_auth_fail = true;
+    if (typeof(u.body.s) == "string")
+        j.s = u.body.s;
+    return json_response(u, req, res, j);
+}
+
 Course.prototype.probation = function(u, req, res) {
     var self = this;
     function complete() {
-        if (typeof(u.body.s) == "string" && self.os[u.body.s]) {
+        var j;
+        if (u.cookie && typeof(u.body.password) == "string") {
+            if (u.body.password == self.password)
+                self.panel_auth[u.cookie.id] = true; // should expire this
+            else
+                return probation_auth_response(u, req, res, true);
+        }
+        if (!u.cookie || !self.panel_auth[u.cookie.id])
+            probation_auth_response(u, req, res, false);
+        else if (typeof(u.body.s) == "string" && self.os[u.body.s]) {
             self.os[u.body.s].probation_until = u.now + 60000;
             self.finish_update(u.now);
             json_response(u, req, res, {ok: true, probation_time: 60000});
@@ -952,8 +971,10 @@ function server_actions(course, u, req, res) {
     if (u.action == "panel")
 	return course.panel(u, req, res, true);
     // put people on probation
-    if (u.action == "probation" && req_post)
+    if (u.action == "probation" && req_post && course.password)
         return course.probation(u, req, res);
+    else if (u.action == "probation" && req_post)
+        return json_response(u, req, res, {error: "password not configured for this course"});
 
     // debugging report, add phantom users
     if (u.action == "debug" && course.debug)

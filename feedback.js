@@ -796,15 +796,41 @@ function hover_board(e) {
     t.css({visibility: "visible", left: p.left + x, top: p.top + y});
 }
 
+function set_probation(s, password) {
+    var data = {s: s};
+    if (password)
+        data.password = password;
+    $.ajax({
+	url: feedback_url + "probation", cache: false, data: data,
+	type: "POST", dataType: "json", timeout: 3000,
+        success: function (data) {
+            var j;
+            if (data.panel_auth) {
+                $(".modal").remove();
+                j = $("<div class='modal'><form><div class='modalin'>"
+                      + (data.panel_auth_fail ? "<div style='padding-bottom:0.5em;color:red'>That password is incorrect.</div>" : "")
+                      + "Enter the course password."
+                      + "<div style='padding:0.5em 0'><input type='password' name='password' style='width:95%' /></div><div style='text-align:right'><button type='button' name='cancel'>Cancel</button> <input type='submit' name='go' value='OK' /></div></div></form></div>");
+                j.find("form").submit(function () {
+                    j.remove();
+                    set_probation(s, j.find("[name='password']").val());
+                    return false;
+                });
+                j.find("[name='cancel']").click(function () {
+                    j.remove();
+                });
+                j.appendTo($("body"));
+                j.find("[name='password']").focus();
+            }
+        },
+	xhrFields: {withCredentials: true}
+    });
+}
+
 function click_board(e) {
     hover_board(e);
-    console.log([e, boardinfo.hovers]);
     if (e.button == 0 && (e.ctrlKey || e.altKey) && boardinfo.hovers)
-	$.ajax({
-	    url: feedback_url + "probation", cache: false, data: {s: boardinfo.hovers.i},
-	    type: "POST", dataType: "json", timeout: 3000,
-	    xhrFields: {withCredentials: true}
-	});
+        set_probation(boardinfo.hovers.i);
 }
 
 
