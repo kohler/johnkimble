@@ -2,7 +2,7 @@ johnkimble_load = (function () {
 
 var $ = jQuery;
 feedback_url = window.feedback_url || "";
-var status = {};
+var status = {}, probation = false;
 var feedback_asking = false;
 var clock_offset = 0;
 var statuses = {"0": "cancel", ok: "ok", stop: "stop", ask: "ask"};
@@ -119,6 +119,18 @@ function draw_status() {
     }
     if (status.lease)
 	$("#feedback_ask").toggle(status.ask);
+    if (status.probation_until && status.probation_until <= now)
+        status.probation_until = null;
+    if (!status.probation_until != !probation) {
+        probation = status.probation_until;
+        $("#feedback_stop button.feedbutton").html(probation ? "YOU’RE" : "STOP");
+        $("#feedback_ok button.feedbutton").html(probation ? "ON" : "GO");
+        $("#feedback_ask button.feedbutton").html(probation ? "PROBATION" : "ASK");
+        if (probation) {
+            feedback_ask_done(null);
+            setTimeout(draw_status, now - probation);
+        }
+    }
     status_animator.finish();
 }
 
@@ -228,7 +240,7 @@ function set_status(data) {
     } else
 	status = {};
     $(".feedback").toggleClass("feedback_active", !!good);
-    draw_status(0);
+    draw_status();
 }
 
 function feedback(type) {
@@ -244,6 +256,8 @@ function feedback(type) {
 }
 
 function feedback_ask() {
+    if (probation)
+        return;
     $("#feedback_ask").height($("#feedback_stop").height());
     $("#feedback_ask .feedback_text").stop(true).fadeOut(250);
     $("#feedback_ask_entry").stop(true).fadeIn(250);

@@ -532,6 +532,8 @@ Course.prototype.status = function(s, u, req, res, extra) {
 	j.feedback_at = s.feedback_at;
 	if (s.q_at && u.now - s.q_at <= duration)
 	    j.question_at = s.q_at;
+        if (s.probation_until && s.probation_until > u.now)
+            j.probation_until = s.probation_until;
     }
     for (var i in extra || {})
 	j[i] = extra[i];
@@ -602,7 +604,7 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	if (!s || s.at < lease)
 	    /* do nothing */;
 	else if (((s.feedback && s.feedback_at >= timeout) || s.style)
-                 && (!s.probation_until || s.probation_until < now)) {
+                 && (!s.probation_until || s.probation_until <= now)) {
 	    j.s[i] = {feedback: s.feedback, emphasis: s.emphasis,
 		      feedback_at: s.feedback_at};
             if (s.style)
@@ -655,7 +657,7 @@ Course.prototype.feedback = function(s, f, now) {
 	delete s.q_at;
 	this.qs.push([s.id, Math.max(this.updated_at + 1, now), ""]);
     }
-    if (!s.probation_until || s.probation_until < now)
+    if (!s.probation_until || s.probation_until <= now)
         this.update = true;
 };
 
@@ -697,7 +699,7 @@ Course.prototype.ask_question = function(s, question, now) {
     }
     qs.push([s.id, Math.max(this.updated_at + 1, now), question]);
     s.at = s.q_at = now;
-    if (!s.probation_until || s.probation_until < now)
+    if (!s.probation_until || s.probation_until <= now)
         this.update = true;
 };
 
