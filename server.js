@@ -92,8 +92,14 @@ function get_now() {
 }
 
 // Receive a body sent onto `req`. When complete, parse it into `u.body`
-// as a query string, then call `complete()`.
-function http_read_body_form(u, req, complete) {
+// as a query string, then call `complete()`. If `query_index` is
+// supplied, then a nonempty `u.query[query_index]` will skip body
+// parsing, set `u.body = u.query`, and call `complete()` right away.
+function http_read_body_form(u, req, complete, query_index) {
+    if (query_index != null && u.query[query_index] != null) {
+        u.body = u.query;
+        return complete();
+    }
     u.body = "";
     req.setEncoding("utf8");
     req.on("data", function (chunk) {
@@ -630,11 +636,7 @@ Course.prototype.probation = function(u, req, res) {
         } else
             json_response(u, req, res, {error: "no such student"});
     }
-    if (u.query.s) {
-        u.body = u.query;
-        complete();
-    } else
-        http_read_body_form(u, req, complete);
+    http_read_body_form(u, req, complete, "s");
 };
 
 
@@ -711,11 +713,7 @@ Course.prototype.ask_request = function(s, u, req, res) {
 	if (self.update)
 	    self.finish_update(u.now);
     }
-    if (u.query.q) {
-	u.body = u.query;
-	complete();
-    } else
-	http_read_body_form(u, req, complete);
+    http_read_body_form(u, req, complete, "q");
 };
 
 Course.prototype.finish_update = function(now) {
