@@ -256,7 +256,7 @@ function feedback(type) {
 }
 
 function feedback_ask() {
-    if (probation)
+    if (probation || !status || !status.lease)
         return;
     $("#feedback_ask").height($("#feedback_stop").height());
     $("#feedback_ask .feedback_text").stop(true).fadeOut(250);
