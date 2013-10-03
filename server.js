@@ -599,23 +599,30 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	s: {},
 	nfeedback: {}
     };
-    var timeout = now - this.duration, lease = now - this.lease, i, s;
+
+    var timeout = now - this.duration, lease = now - this.lease, i, s, jx, f;
     for (i = 0; i < this.os.length; ++i) {
 	s = this.os[i];
 	if (!s || s.at < lease)
-	    /* do nothing */;
-	else if (((s.feedback && s.feedback_at >= timeout) || s.style)
-                 && (!s.probation_until || s.probation_until <= now)) {
-	    j.s[i] = {feedback: s.feedback, emphasis: s.emphasis,
-		      feedback_at: s.feedback_at};
+            continue;
+
+        jx = {};
+        if (s.probation_until && s.probation_until > now)
+            jx.probation_until = s.probation_until;
+	if (((s.feedback && s.feedback_at >= timeout) || s.style)
+            && !jx.probation_until) {
+            jx.feedback = s.feedback;
+            jx.feedback_at = s.feedback_at;
+            jx.emphasis = s.emphasis;
             if (s.style)
-                j.s[i].style = s.style;
-	    j.nfeedback[s.feedback] = (j.nfeedback[s.feedback] || 0) + 1;
-	} else {
-	    j.s[i] = {};
-	    j.nfeedback[0] = (j.nfeedback[0] || 0) + 1;
+                jx.style = s.style;
 	}
+        j.s[i] = jx;
+
+        f = jx.feedback || 0;
+        j.nfeedback[f] = (j.nfeedback[f] || 0) + 1;
     }
+
     if (this.qs.length && this.question) {
 	var qs = this.qs;
 	for (i = qs.length; i > 0 && qs[i-1][1] > poll_at; --i)
@@ -626,6 +633,7 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 		j.qs.push([s.ordinal, qs[i][1], this.bowdlerizer(qs[i][2])]);
 	    }
     }
+
     return json_response(u, req, res, j);
 };
 
@@ -638,10 +646,24 @@ function probation_auth_response(u, req, res, password_failed) {
     return json_response(u, req, res, j);
 }
 
-Course.prototype.probation = function(u, req, res) {
+Course.prototype.probation = function(s, now) {
+    var i, qs;
+    s.feedback = 0;
+    s.feedback_at = now;
+    s.probation_until = now + 60000;
+    qs = this.qs;
+    for (i = 0; i < qs.length; ++i)
+        if (qs[i][0] == s.id) {
+            qs.splice(i, 1);
+            --i;
+        }
+    this.finish_update(now);
+};
+
+Course.prototype.probation_request = function(u, req, res) {
     var self = this;
     function complete() {
-        var j;
+        var j, i, qs, s;
         if (u.cookie && typeof(u.body.password) == "string") {
             if (u.body.password == self.password)
                 self.panel_auth[u.cookie.id] = true; // should expire this
@@ -650,9 +672,8 @@ Course.prototype.probation = function(u, req, res) {
         }
         if (!u.cookie || !self.panel_auth[u.cookie.id])
             probation_auth_response(u, req, res, false);
-        else if (typeof(u.body.s) == "string" && self.os[u.body.s]) {
-            self.os[u.body.s].probation_until = u.now + 60000;
-            self.finish_update(u.now);
+        else if (typeof(u.body.s) == "string" && (s = self.os[u.body.s])) {
+            self.probation(s, u.now);
             json_response(u, req, res, {ok: true, probation_time: 60000});
         } else
             json_response(u, req, res, {error: "no such student"});
@@ -972,7 +993,7 @@ function server_actions(course, u, req, res) {
 	return course.panel(u, req, res, true);
     // put people on probation
     if (u.action == "probation" && req_post && course.password)
-        return course.probation(u, req, res);
+        return course.probation_request(u, req, res);
     else if (u.action == "probation" && req_post)
         return json_response(u, req, res, {error: "password not configured for this course"});
 

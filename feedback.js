@@ -325,12 +325,16 @@ function store_board(data) {
     clock_offset = data.now - (new Date).getTime();
 
     // remove old questions that don't have current students
-    var i, q, qs, x = {};
+    var i, q, qs, x = {}, stati = boardstatus.s;
     for (i in boardqs)
-	if (!(i in boardstatus.s))
+	if (!(i in stati) || stati[i].probation_until > data.now)
 	    x[i] = 1;
     for (i in x)
 	delete boardqs[i];
+    if (boardinfo.hovers && boardinfo.hovers.i in x) {
+        boardinfo.hovers = null;
+        $(".showquestion").remove();
+    }
 
     // add remaining questions
     if ((qs = data.qs))
@@ -697,13 +701,6 @@ var resize_feedbackboard = (function () {
 	setTimeout(resize_feedbackboard, 1);
     };
 })();
-
-function unhover_board() {
-    if (boardinfo.hovering >= 0) {
-	boardinfo.hovering = -1;
-	$(".showquestion").hide();
-    }
-}
 
 function hover_board_status(x, y) {
     var na, xb, yb, cs, q, xc, yc, r;
