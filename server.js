@@ -599,6 +599,8 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 	s: {},
 	nfeedback: {}
     };
+    if (u.cookie && this.panel_auth[u.cookie.id])
+        j.panel_auth = true;
 
     var timeout = now - this.duration, lease = now - this.lease, i, s, jx, f;
     for (i = 0; i < this.os.length; ++i) {

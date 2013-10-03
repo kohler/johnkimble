@@ -794,7 +794,7 @@ function hover_board(e) {
 }
 
 function set_probation(s, password) {
-    var data = {s: s};
+    var data = s == null ? {} : {s: s};
     if (password)
         data.password = password;
     $.ajax({
@@ -826,8 +826,12 @@ function set_probation(s, password) {
 
 function click_board(e) {
     hover_board(e);
-    if (e.button == 0 && (e.ctrlKey || e.altKey) && boardinfo.hovers)
-        set_probation(boardinfo.hovers.i);
+    if (e.button == 0 && (e.ctrlKey || e.altKey)) {
+        if (boardinfo.hovers)
+            set_probation(boardinfo.hovers.i);
+        else if (!boardstatus.panel_auth)
+            set_probation(null);
+    }
 }
 
 
