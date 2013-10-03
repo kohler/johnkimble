@@ -650,7 +650,11 @@ Course.prototype.probation = function(s, now) {
     var i, qs;
     s.feedback = 0;
     s.feedback_at = now;
-    s.probation_until = now + 60000;
+    if (!s.probation_until || s.probation_until + 3600000 <= now)
+        s.probation_count = 0;
+    else
+        ++s.probation_count;
+    s.probation_until = now + 60000 * Math.pow(2, s.probation_count);
     qs = this.qs;
     for (i = 0; i < qs.length; ++i)
         if (qs[i][0] == s.id) {
