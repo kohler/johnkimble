@@ -99,7 +99,7 @@ load; for instance, `node server.js --init-file=FILE`.
     address, and `server_config.proxy` is true, then John Kimble will
     use any `X-Forwarded-For` header to determine the client's
     address. If `proxy` is a string, it should be a string or regular
-    expression, such as `/^127.0.0.1$/`; John Kimble will only use
+    expression, such as `/^127\.0\.0\.1$/`; John Kimble will only use
     proxy headers when the remote host matches that address.
 
 ### Course configuration options
@@ -141,7 +141,7 @@ extend(course_config, {
 * `password` (string)
 
     Course password. Set this to enable “probation” (control- or
-    option-clicking on a location in the feedback board will put that
+    shift-clicking on a location in the feedback board will put that
     student on probation and hide their questions and feedback for one
     minute). Only users who know the password can put students on
     probation.

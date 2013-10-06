@@ -826,7 +826,7 @@ function set_probation(s, password) {
 
 function click_board(e) {
     hover_board(e);
-    if (e.button == 0 && (e.ctrlKey || e.altKey)) {
+    if (e.button == 0 && (e.shiftKey || e.ctrlKey)) {
         if (boardinfo.hovers)
             set_probation(boardinfo.hovers.i);
         else if (!boardstatus.panel_auth)
