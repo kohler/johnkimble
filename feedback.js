@@ -770,32 +770,36 @@ function hover_board(e) {
         spt = hs.y - (th + 16), spb = bpos.height - hs.y - (th + 16);
     if (spl > 0 && spl > 1.2 * spr) {
 	x = hs.x - 16 - tw;
+        y = hs.y - th + Math.max(th / 2, 18);
 	tpos = "r";
     } else if (spr > 0) {
 	x = hs.x + 16;
+        y = hs.y - Math.max(th / 2, 16);
 	tpos = "l";
     } else if (spt > 0 || spt > 1.2 * spb) {
-	y = Math.max(hs.y - 16 - th, 2);
+	x = hs.x - tw / 2;
+	y = Math.max(hs.y - 16 - th, 5);
 	tpos = "b";
     } else {
-	y = Math.min(hs.y + 16, bpos.height - th - 2);
+	x = hs.x - tw / 2;
+	y = Math.min(hs.y + 16, bpos.height - th - 5);
 	tpos = "t";
     }
     t.find(".qtail0, .qtail1").addClass(tpos);
+    if (x < 5 || x > bpos.width - tw - 5)
+        x = Math.max(5, bpos.width - tw - 5);
+    if (y < 2 || y > bpos.height - th - 2)
+        y = Math.max(-5, bpos.height - th - 2);
+    x = Math.floor(x);
+    y = Math.floor(y);
     if (tpos == "l") {
-	y = Math.min(hs.y - Math.max(th / 2, 16), bpos.height - th - 5);
-	y = Math.floor(Math.max(y, Math.min(5, (bpos.height - th) / 2), 0));
 	spt = Math.max(hs.y - y - 9, 5);
 	t.find(".qtail0, .qtail1").css({top: spt});
     } else if (tpos == "r") {
-	y = Math.min(hs.y - th + Math.max(th / 2, 18), bpos.height - th - 5);
-	y = Math.floor(Math.max(y, Math.min(5, (bpos.height - th) / 2), 0));
 	spt = Math.min(hs.y - y, th - 16);
 	t.find(".qtail0").css({top: spt});
 	t.find(".qtail1").css({top: spt + 1});
     } else {
-	x = Math.min(Math.floor(hs.x - tw / 2), bpos.width - tw - 5);
-	x = Math.max(x, Math.min(5, (bpos.width - tw) / 2), 0);
 	spl = Math.max(hs.x - x - 9, 5);
 	t.find(".qtail0, .qtail1").css({left: spl});
     }
