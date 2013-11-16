@@ -2,7 +2,7 @@ johnkimble_load = (function () {
 
 var $ = jQuery;
 feedback_url = window.feedback_url || "";
-var status = {}, probation = false;
+var status = {s: {}}, probation = false;
 var feedback_asking = false;
 var clock_offset = 0;
 var statuses = {"0": "cancel", ok: "ok", stop: "stop", ask: "ask"};
