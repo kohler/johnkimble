@@ -735,9 +735,11 @@ function hover_board(e) {
     var bpos = board_position();
     var x = e.pageX - bpos.left, y = e.pageY - bpos.top;
     var hs = hover_board_status(x, y);
-    if (boardinfo.hovers && boardinfo.hovers.q
-        && (!hs || hs.i != boardinfo.hovers.i || hs.q != boardinfo.hovers.q))
+    if (boardinfo.hovers && boardinfo.hovers.q) {
+        if (hs && hs.i == boardinfo.hovers.i && hs.q == boardinfo.hovers.q)
+            return;
         $(".showquestion").remove();
+    }
     boardinfo.hovers = hs;
     if (!hs || !hs.q)
 	return;
