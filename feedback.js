@@ -761,7 +761,7 @@ function hover_board(e) {
     if (!t)
 	return;
     t.append("<div class='qtail1'></div>");
-    t.appendTo($("body"));
+    t.appendTo($("#feedbackcontainer"));
     t.find(".q").css({maxWidth: bpos.width - 30});
 
     // position the question
