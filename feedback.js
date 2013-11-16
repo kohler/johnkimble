@@ -696,7 +696,7 @@ var resize_feedbackboard = (function () {
 	    delta = 0;
 	if (history.length > 10)
 	    history.pop();
-	history.unshift([w - delta, h - delta, now]);
+	history.unshift([w, h, now]);
 	$("#feedbackcontainer").css({width: w - delta, height: h - delta});
 	setTimeout(resize_feedbackboard, 1);
     };
