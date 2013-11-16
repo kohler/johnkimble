@@ -750,8 +750,7 @@ function hover_board(e) {
 	if (!x[3])
 	    continue;
 	if (!t) {
-	    t = $("<div class='showquestion' style='position:absolute;max-width:" +
-		  bw + "px;visibility:hidden;top:0;left:0'></div>");
+	    t = $("<div class='showquestion' style='position:absolute;visibility:hidden;top:0;left:0'></div>");
 	    t.append("<div class='qtail0'></div>");
 	}
 	t.append($("<div class='q q" + j + "'></div>").text(x[3]));
@@ -761,6 +760,7 @@ function hover_board(e) {
 	return;
     t.append("<div class='qtail1'></div>");
     t.appendTo($("body"));
+    t.find(".q").css({maxWidth: bpos.width - 30});
 
     // position the question
     var tw = t.outerWidth(), th = t.outerHeight(), tpos;
