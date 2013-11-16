@@ -723,12 +723,18 @@ function hover_board_status(x, y) {
     return {i: i, q: q ? q[0][0] : null, x: xc, y: yc};
 }
 
-function hover_board(e) {
-    var b = $("#feedbackboard"), p = b.offset(), s,
-        bw = b.width(), bh = b.height(),
-        x = e.pageX - p.left, y = e.pageY - p.top, t, b, i, j,
-	hs = hover_board_status(x, y);
+function board_position() {
+    var b = $("#feedbackboard");
+    var bpos = b.offset();
+    bpos.width = b.width();
+    bpos.height = b.height();
+    return bpos;
+}
 
+function hover_board(e) {
+    var bpos = board_position();
+    var x = e.pageX - bpos.left, y = e.pageY - bpos.top;
+    var hs = hover_board_status(x, y);
     if (boardinfo.hovers && boardinfo.hovers.q
         && (!hs || hs.i != boardinfo.hovers.i || hs.q != boardinfo.hovers.q))
         $(".showquestion").remove();
@@ -736,8 +742,9 @@ function hover_board(e) {
     if (!hs || !hs.q)
 	return;
 
-    b = boardqs[hs.i];
-    s = boardstatus.s[hs.i];
+    var b = boardqs[hs.i];
+    var s = boardstatus.s[hs.i];
+    var t, i, j;
     for (i = j = 0; j < 3 && i < b.length; ++i) {
 	x = feedback_style(s, b[i]);
 	if (!x[3])
@@ -757,8 +764,8 @@ function hover_board(e) {
 
     // position the question
     var tw = t.outerWidth(), th = t.outerHeight(), tpos;
-    var spl = hs.x - (tw + 16), spr = bw - hs.x - (tw + 16),
-        spt = hs.y - (th + 16), spb = bh - hs.y - (th + 16);
+    var spl = hs.x - (tw + 16), spr = bpos.width - hs.x - (tw + 16),
+        spt = hs.y - (th + 16), spb = bpos.height - hs.y - (th + 16);
     if (spl > 0 && spl > 1.2 * spr) {
 	x = hs.x - 16 - tw;
 	tpos = "r";
@@ -766,31 +773,31 @@ function hover_board(e) {
 	x = hs.x + 16;
 	tpos = "l";
     } else if (spt > 0 || spt > 1.2 * spb) {
-	y = hs.y - 16 - th;
+	y = Math.max(hs.y - 16 - th, 2);
 	tpos = "b";
     } else {
-	y = hs.y + 16;
+	y = Math.min(hs.y + 16, bpos.height - th - 2);
 	tpos = "t";
     }
     t.find(".qtail0, .qtail1").addClass(tpos);
     if (tpos == "l") {
-	y = Math.min(hs.y - Math.max(th / 2, 16), bh - th - 5);
-	y = Math.floor(Math.max(y, Math.min(5, (bh - th) / 2), 0));
+	y = Math.min(hs.y - Math.max(th / 2, 16), bpos.height - th - 5);
+	y = Math.floor(Math.max(y, Math.min(5, (bpos.height - th) / 2), 0));
 	spt = Math.max(hs.y - y - 9, 5);
 	t.find(".qtail0, .qtail1").css({top: spt});
     } else if (tpos == "r") {
-	y = Math.min(hs.y - th + Math.max(th / 2, 18), bh - th - 5);
-	y = Math.floor(Math.max(y, Math.min(5, (bh - th) / 2), 0));
+	y = Math.min(hs.y - th + Math.max(th / 2, 18), bpos.height - th - 5);
+	y = Math.floor(Math.max(y, Math.min(5, (bpos.height - th) / 2), 0));
 	spt = Math.min(hs.y - y, th - 16);
 	t.find(".qtail0").css({top: spt});
 	t.find(".qtail1").css({top: spt + 1});
     } else {
-	x = Math.min(Math.floor(hs.x - tw / 2), bw - tw - 5);
-	x = Math.max(x, Math.min(5, (bw - tw) / 2), 0);
+	x = Math.min(Math.floor(hs.x - tw / 2), bpos.width - tw - 5);
+	x = Math.max(x, Math.min(5, (bpos.width - tw) / 2), 0);
 	spl = Math.max(hs.x - x - 9, 5);
 	t.find(".qtail0, .qtail1").css({left: spl});
     }
-    t.css({visibility: "visible", left: p.left + x, top: p.top + y});
+    t.css({visibility: "visible", left: bpos.left + x, top: bpos.top + y});
 }
 
 function set_probation(s, password) {
