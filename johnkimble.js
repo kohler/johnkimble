@@ -71,7 +71,8 @@ var feedback_files = {
     "index.html": "index.html",
     "board": "board.html",
     "board.html": "board.html",
-    "feedback.js": "feedback.js",
+    "jkfeedback.js": "jkfeedback.js",
+    "feedback.js": "jkfeedback.js",
     "jquery-1.8.2.min.js": "jquery-1.10.2.min.js",
     "jquery-1.9.0.min.js": "jquery-1.10.2.min.js",
     "jquery-1.10.2.min.js": "jquery-1.10.2.min.js",
@@ -1091,7 +1092,8 @@ function server(req, res) {
 
 (function () {
     var needargs = {
-        port: 1, p: 1, "init-file": 1, f: 1, "access-log": 1, "error-log": 1
+        port: 1, p: 1, "init-file": 1, config: 1, f: 1,
+        "access-log": 1, "error-log": 1
     }, opt = {}, i, x, m, access_log_name, error_log_name;
     for (var i = 2; i < process.argv.length; ++i) {
 	if ((m = process.argv[i].match(/^--([^=]*)(=.*)?$/)))
@@ -1106,10 +1108,14 @@ function server(req, res) {
     server_id = Math.floor(get_now() / 1000 - 1000000000);
     make_next_id();
 
-    if ((x = opt["init-file"] || opt.f))
+    if ((x = opt["init-file"] || opt.config || opt.f))
 	eval(fs.readFileSync(x, "utf8"));
-    else if (!opt["no-init-file"] && fs.existsSync("serverconfig.js"))
-	eval(fs.readFileSync("serverconfig.js", "utf8"));
+    else if (!opt["no-init-file"] && fs.existsSync("jkconfig.js"))
+	eval(fs.readFileSync("jkconfig.js", "utf8"));
+    else if (!opt["no-init-file"] && fs.existsSync("serverconfig.js")) {
+        console.warn("'serverconfig.js' is deprecated, prefer 'jkconfig.js' for configuration");
+        eval(fs.readFileSync("serverconfig.js", "utf8"));
+    }
 
     access_log_name = opt["access-log"] || server_config.access_log;
     if (access_log_name == "-" || access_log_name == "stdout")

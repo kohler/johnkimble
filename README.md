@@ -17,10 +17,10 @@ Installation
 
 Run like this:
 
-    node server
+    node johnkimble
 
 This puts the server in the background, listening on port 6169. Run
-`node server --fg` to run in the foreground. Logs are written to
+`node johnkimble --fg` to run in the foreground. Logs are written to
 `access.log` and `error.log`.
 
 To test load these URLs:
@@ -34,13 +34,13 @@ independent.
 Configuration
 -------------
 
-The Javascript file `serverconfig.js` in the John Kimble directory can
+The Javascript file `jkconfig.js` in the John Kimble directory can
 be used for configuration. There are three configuration objects:
 `server_config` for server-wide options, `course_config` for per-course
 options, and `default_course_config` for default values for per-course
 options. Call `extend` to change configuration options in one or more of
 these objects. For instance, to run John Kimble on a different port and
-a specific hostname, put this in `serverconfig.js`:
+a specific hostname, put this in `jkconfig.js`:
 
 ```js
 extend(server_config, {
@@ -49,7 +49,7 @@ extend(server_config, {
 ```
 
 The `--init-file` option can specify a different configuration file to
-load; for instance, `node server.js --init-file=FILE`.
+load; for instance, `node johnkimble.js --init-file=FILE`.
 
 ### `server_config` options
 
