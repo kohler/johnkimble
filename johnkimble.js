@@ -369,7 +369,7 @@ Course.prototype.deactivate = function(s, now) {
     if (s.ordinal != null && this.os[s.ordinal] == s) {
 	this.free_ordinals.push(s.ordinal);
 	this.os[s.ordinal] = null;
-	while (this.os.length && !this.os[s.ordinal.length - 1])
+	while (this.os.length && !this.os[this.os.length - 1])
 	    this.os.pop();
 	this.update = true;
     }
