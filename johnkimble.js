@@ -1,3 +1,5 @@
+"use strict";
+
 var http = require("http");
 var url = require("url");
 var cookies = require("cookies");
@@ -641,7 +643,7 @@ Course.prototype.panel = function(u, req, res, allow_queue) {
 };
 
 function probation_auth_response(u, req, res, password_failed) {
-    j = {panel_auth: true, error: (password_failed ? "bad password" : "need course password")};
+    var j = {panel_auth: true, error: (password_failed ? "bad password" : "need course password")};
     if (password_failed)
         j.panel_auth_fail = true;
     if (typeof(u.body.s) == "string")

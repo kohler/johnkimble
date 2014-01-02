@@ -1,4 +1,5 @@
 johnkimble_load = (function () {
+"use strict";
 
 var $ = jQuery;
 feedback_url = window.feedback_url || "";
@@ -325,7 +326,7 @@ function store_board(data) {
     clock_offset = data.now - (new Date).getTime();
 
     // remove old questions that don't have current students
-    var i, q, qs, x = {}, stati = boardstatus.s;
+    var i, q, qs, x = {}, stati = boardstatus.s || {};
     for (i in boardqs)
 	if (!(i in stati) || stati[i].probation_until > data.now)
 	    x[i] = 1;
@@ -703,7 +704,7 @@ var resize_feedbackboard = (function () {
 })();
 
 function hover_board_status(x, y) {
-    var na, xb, yb, cs, q, xc, yc, r;
+    var na, xb, yb, cs, q, xc, yc, r, i;
     if (!(na = boardinfo.nacross))
 	return null;
     xb = boardinfo.xborder;
@@ -876,7 +877,7 @@ return function () {
 	}
     } else
 	$("#newwindowlink").click(function () {
-	    t = (this.href.match(/\?/) ? "&" : "?") + "neww=1";
+	    var t = (this.href.match(/\?/) ? "&" : "?") + "neww=1";
 	    window.open(this.href + t, "feedback61_window", "titlebar=no,dialog=yes,close=no,width=640,height=40");
 	});
 };
