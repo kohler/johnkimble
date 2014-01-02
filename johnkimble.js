@@ -223,7 +223,7 @@ function Course(name) {
     this.phanta = [];
     this.free_ordinals = [];
     this.size = 0;
-    this.last_gc = this.updated_at = get_now();
+    this.last_gc = this.last_forced_gc = this.updated_at = get_now();
     this.update = false;
     this.pollers = {};
     this.next_poller = 1;
@@ -334,7 +334,7 @@ Course.prototype.clear_cookie = function(req, res, now) {
 
 Course.prototype.ensure_user = function(id, now) {
     var s = this.s[id];
-    if (!s && this.size == this.capacity && this.last_gc < now - 1000)
+    if (!s && this.size == this.capacity && this.last_forced_gc < now - 1000)
 	this.gc(now, 1);
     if (!s && this.size != this.capacity) {
 	this.s[id] = s = {
@@ -417,6 +417,8 @@ Course.prototype.gc = function(now, force_slots) {
 	this.qs.shift();
 
     this.last_gc = now;
+    if (force_slots)
+        this.last_forced_gc = now;
 };
 
 
