@@ -375,9 +375,9 @@ Course.prototype.deactivate = function(s, now) {
     }
 };
 
-Course.prototype.gc = function(now, need) {
+Course.prototype.gc = function(now, force_slots) {
     var i, j, ss = [];
-    need = need || 0;
+    force_slots = force_slots || 0;
     for (i in this.s)
 	ss.push(this.s[i]);
     if (ss.length != this.size)
@@ -396,7 +396,7 @@ Course.prototype.gc = function(now, need) {
     for (i = 0; i < ss.length
 	 && (!ss[i].at
 	     || ss[i].at < timeout
-	     || (ss.length - i - need > this.capacity
+	     || (ss.length - i + force_slots > this.capacity
 		 && (ss[i].at < guarantee || !ss[i].auth_at)));
 	 ++i) {
 	delete this.s[ss[i].id];
