@@ -775,7 +775,7 @@ function hover_board(e) {
 	tpos = "r";
     } else if (spr > 0) {
 	x = hs.x + 16;
-        y = hs.y - Math.max(th / 2, 16);
+        y = hs.y - Math.max(th / 2 + 5, 16);
 	tpos = "l";
     } else if (spt > 0 || spt > 1.2 * spb) {
 	x = hs.x - tw / 2;
@@ -787,12 +787,8 @@ function hover_board(e) {
 	tpos = "t";
     }
     t.find(".qtail0, .qtail1").addClass(tpos);
-    if (x < 5 || x > bpos.width - tw - 5)
-        x = Math.max(5, bpos.width - tw - 5);
-    if (y < 2 || y > bpos.height - th - 2)
-        y = Math.max(-5, bpos.height - th - 2);
-    x = Math.floor(x);
-    y = Math.floor(y);
+    x = Math.floor(Math.max(5, Math.min(x, bpos.width - tw - 5)));
+    y = Math.floor(Math.max(2, Math.min(y, bpos.height - th - 2)));
     if (tpos == "l") {
 	spt = Math.max(hs.y - y - 9, 5);
 	t.find(".qtail0, .qtail1").css({top: spt});
@@ -804,7 +800,7 @@ function hover_board(e) {
 	spl = Math.max(hs.x - x - 9, 5);
 	t.find(".qtail0, .qtail1").css({left: spl});
     }
-    t.css({visibility: "visible", left: bpos.left + x, top: bpos.top + y});
+    t.css({visibility: "visible", left: x, top: y});
 }
 
 function set_probation(s, password) {
