@@ -520,11 +520,11 @@ function setup_canvas(e) {
             || ctx.oBackingStorePixelRatio
             || ctx.backingStorePixelRatio || 1,
         r = dpr / bspr;
-    canvas.width = w * r;
-    canvas.height = h * r;
+    e[0].width = w * r;
+    e[0].height = h * r;
     if (dpr !== bspr) {
-        canvas.style.width = w + "px";
-        canvas.style.height = h + "px";
+        e[0].style.width = w + "px";
+        e[0].style.height = h + "px";
         ctx.scale(r, r);
     }
     return ctx;
