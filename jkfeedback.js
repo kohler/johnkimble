@@ -511,18 +511,39 @@ function feedback_style(s, sq, f, feedback_at, cutoff) {
     return style;
 }
 
+function setup_canvas(e) {
+    var w = e.width(), h = e.height(), ctx = e[0].getContext("2d"),
+        dpr = window.devicePixelRatio || 1,
+        bspr = ctx.webkitBackingStorePixelRatio
+            || ctx.mozBackingStorePixelRatio
+            || ctx.msBackingStorePixelRatio
+            || ctx.oBackingStorePixelRatio
+            || ctx.backingStorePixelRatio || 1,
+        r = dpr / bspr;
+    canvas.width = w * r;
+    canvas.height = h * r;
+    if (dpr !== bspr) {
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+        ctx.scale(r, r);
+    }
+    return ctx;
+}
+
 function draw_board() {
-    var e = $("#feedbackboard"), cv = e[0];
+    var e = $("#feedbackboard"), cv = e[0],
+        ctx = setup_canvas(e),
+        cv_width = e.width(), cv_height = e.height();
 
     // canvas-dependent sizes
     var cellsize = 30, xborder = 10, yborder = 10, nacross, ndown;
     while (1) {
-	nacross = Math.floor((cv.width - 2 * xborder) / cellsize);
-	ndown = Math.floor((cv.height - 2 * yborder) / cellsize);
+	nacross = Math.floor((cv_width - 2 * xborder) / cellsize);
+	ndown = Math.floor((cv_height - 2 * yborder) / cellsize);
 	if (nacross * ndown >= (boardstatus.nordinal || 0) || cellsize == 10)
 	    break;
 	if (cellsize == 30) {
-	    cellsize = Math.sqrt((cv.width - 10) * (cv.height - 10) / boardstatus.nordinal);
+	    cellsize = Math.sqrt((cv_width - 10) * (cv_height - 10) / boardstatus.nordinal);
 	    cellsize = Math.max(10, Math.min(29, Math.floor(cellsize)));
 	} else
 	    --cellsize;
@@ -543,8 +564,7 @@ function draw_board() {
     var t_start, t_pulse, t_emphasis, t_hold, t_end;
 
     // drawing constants
-    var ctx = cv.getContext("2d"),
-	smallrad = cellsize / 10,
+    var smallrad = cellsize / 10,
 	qrad = smallrad * 2.5,
 	largerad = smallrad * 4,
 	maxrad = smallrad * 6,
@@ -613,13 +633,13 @@ function draw_board() {
 
     // draw board
     ctx.fillStyle = background.toRgbaString();
-    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillRect(0, 0, cv_width, cv_height);
     ctx.strokeStyle = "rgba(248, 208, 208, 0.2)";
     ctx.lineWidth = 8;
-    ctx.strokeRect(0, 0, cv.width, cv.height);
+    ctx.strokeRect(0, 0, cv_width, cv_height);
     ctx.strokeStyle = "rgba(248, 208, 208, 0.1)";
     ctx.lineWidth = 16;
-    ctx.strokeRect(0, 0, cv.width, cv.height);
+    ctx.strokeRect(0, 0, cv_width, cv_height);
 
     // fills and strokes
     for (i in boardstatus.s) {
@@ -687,7 +707,7 @@ var resize_feedbackboard = (function () {
 	    if (history[i][0] == w && history[i][1] == h)
 		break;
 	if (i == 0 && i != history.length) {
-	    $("#feedbackboard").attr({width: w - delta, height: h - delta});
+	    $("#feedbackboard").css({width: w - delta, height: h - delta});
 	    return draw_board(0);
 	}
 	var now = (new Date).getTime();
