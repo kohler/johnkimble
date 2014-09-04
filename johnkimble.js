@@ -61,7 +61,7 @@ var courses = {
     //         id: SCOOKIE, ordinal: ordinal,
     //         at: timestamp, feedback: type,
     //         emphasis: count, feedback_at: timestamp } },
-    //     os: [..studens by ordinal..]
+    //     os: [..students by ordinal..]
     // }
 };
 
