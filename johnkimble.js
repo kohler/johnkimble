@@ -75,6 +75,7 @@ var feedback_files = {
     "board.html": "board.html",
     "jkfeedback.js": "jkfeedback.js",
     "feedback.js": "jkfeedback.js",
+    "explosion.png": "explosion.png",
     "jquery-1.8.2.min.js": "jquery-1.11.1.min.js",
     "jquery-1.9.0.min.js": "jquery-1.11.1.min.js",
     "jquery-1.10.2.min.js": "jquery-1.11.1.min.js",
@@ -855,10 +856,16 @@ function fc_read(fc, cb) {
 	    cb.call(fc, fc.data);
 	else {
 	    fc.callbacks.push(cb);
-	    fs.readFile(fc.filename, "utf8", fc_postread(fc, stat));
+            var encoding = fc.is_binary() ? null : "utf8";
+	    fs.readFile(fc.filename, encoding, fc_postread(fc, stat));
         }
     }
 }
+
+FileCache.prototype.is_binary = function () {
+    return this.content_type != "application/javascript" &&
+        this.content_type != "text/html";
+};
 
 FileCache.prototype.read = function (cb) {
     fc_read(this, cb);
@@ -950,15 +957,23 @@ function make_course_translator(course) {
 }
 
 function send_feedback_file(course, u, req, res) {
-    var filename = feedback_files[u.action], fc;
+    var filename = feedback_files[u.action], fc, mt;
     if (filename != "index.html" && u.pathname.match(/\/$/))
 	return redirect(u.action, u, req, res);
-    if (!/html$/.test(filename)) {
-	if (!(fc = file_cache[filename]))
-	    fc = file_cache[filename] = new FileCache(filename, "application/javascript");
-    } else {
+    if (/[.]js$/.test(filename))
+        mt = "application/javascript";
+    else if (/[.]png$/.test(filename))
+        mt = "image/png";
+    else if (/[.]html$/.test(filename))
+        mt = "text/html";
+    else
+        mt = "application/octet-stream";
+    if (mt == "text/html") {
 	if (!(fc = course.file_cache[filename]))
-	    fc = course.file_cache[filename] = new FileCache(filename, "text/html", make_course_translator(course));
+	    fc = course.file_cache[filename] = new FileCache(filename, mt, make_course_translator(course));
+    } else {
+	if (!(fc = file_cache[filename]))
+	    fc = file_cache[filename] = new FileCache(filename, mt);
     }
     fc.send(u, req, res);
 }

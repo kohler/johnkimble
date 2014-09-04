@@ -9,7 +9,7 @@ var clock_offset = 0;
 var statuses = {"0": "cancel", ok: "ok", stop: "stop", ask: "ask"};
 var pulse_duration = 150;
 var boardstatus = {}, boardsizes = {},
-    boardqs = {}, boardinfo = {}, boardcolorre = null,
+    boardqs = {}, boardinfo = {anim: {}}, boardcolorre = null,
     board_outstanding = false, board_backoff = 0, board_backoffuntil = 0;
 var compact_window = !!window.location.search.match(/[?&]neww=1/);
 var colors = {
@@ -330,11 +330,16 @@ function store_board(data) {
     for (i in boardqs)
 	if (!(i in stati) || stati[i].probation_until > data.now)
 	    x[i] = 1;
-    for (i in x)
+    for (i in x) {
 	delete boardqs[i];
-    if (boardinfo.hovers && boardinfo.hovers.i in x) {
-        boardinfo.hovers = null;
-        $(".showquestion").remove();
+        if (boardinfo.hovers && boardinfo.hovers.i == i) {
+            boardinfo.hovers = null;
+            $(".showquestion").remove();
+        }
+        if (boardinfo.anim[i]) {
+            delete boardinfo.anim[i];
+            $("#boardanim" + i).remove();
+        }
     }
 
     // add remaining questions
@@ -347,6 +352,44 @@ function store_board(data) {
 
     draw_board(0);
     getboard();
+}
+
+function student_position(s) {
+    if (!boardstatus.s[s])
+        return null;
+    var na = boardinfo.nacross, cs = boardinfo.cellsize;
+    return {x: boardinfo.xborder + (s % na + 0.5) * cs,
+            y: boardinfo.yborder + (Math.floor(s / na) + 0.5) *cs,
+            r: boardsizes[s].r};
+}
+
+function explode(s) {
+    $("#boardanim" + s).stop(true).remove();
+    console.log(s);
+    var j = $("<div id='boardanim" + s + "' style='width:48px;height:48.75px;background-image:url(" + feedback_url + "explosion.png);background-size:1200px 48px;position:absolute;top:0;left:0'></div>");
+    var x = 0;
+    j.appendTo("#feedbackcontainer");
+    function move() {
+        if (x < 1200) {
+            j.dequeue().css({backgroundPosition: -x + "px 0"}).delay(30).queue(move);
+            x += 48;
+        } else {
+            j.stop(true).remove();
+            delete boardinfo.anim[s];
+        }
+    }
+    move();
+    function reposition() {
+        var bpos = student_position(s);
+        if (bpos)
+            j.css({left: bpos.x - 24, top: bpos.y - 24});
+        else {
+            j.stop(true).remove();
+            delete boardinfo.anim[s];
+        }
+    }
+    boardinfo.anim[s] = reposition;
+    reposition();
 }
 
 var feedback_shapes = (function () {
@@ -695,6 +738,10 @@ function draw_board() {
 	}
     }
 
+    // reposition
+    for (i in boardinfo.anim)
+        boardinfo.anim[i]();
+
     // done
     board_animator.finish();
 }
@@ -724,7 +771,7 @@ var resize_feedbackboard = (function () {
 })();
 
 function hover_board_status(x, y) {
-    var na, xb, yb, cs, q, xc, yc, r, i;
+    var na, xb, yb, cs, s, bpos, r, q;
     if (!(na = boardinfo.nacross))
 	return null;
     xb = boardinfo.xborder;
@@ -732,16 +779,14 @@ function hover_board_status(x, y) {
     cs = boardinfo.cellsize;
     if (x < xb || y < yb || x >= xb + na * cs)
 	return null;
-    i = Math.floor((x - xb) / cs) + Math.floor((y - yb) / cs) * na;
-    if (!boardstatus.s[i])
+    s = Math.floor((x - xb) / cs) + Math.floor((y - yb) / cs) * na;
+    if (!(bpos = student_position(s)))
         return null;
-    xc = xb + (i % na + 0.5) * cs;
-    yc = yb + (Math.floor(i / na) + 0.5) * cs;
-    r = Math.sqrt((xc - x) * (xc - x) + (yc - y) * (yc - y));
-    if (r > boardsizes[i].r + 2)
+    r = Math.sqrt((bpos.x - x) * (bpos.x - x) + (bpos.y - y) * (bpos.y - y));
+    if (r > bpos.r + 2)
 	return null;
-    q = boardqs[i];
-    return {i: i, q: q ? q[0][0] : null, x: xc, y: yc};
+    q = boardqs[s];
+    return {i: s, q: q ? q[0][0] : null, x: bpos.x, y: bpos.y};
 }
 
 function board_position() {
@@ -848,7 +893,8 @@ function set_probation(s, password) {
                 });
                 j.appendTo($("body"));
                 j.find("[name='password']").focus();
-            }
+            } else
+                explode(s);
         },
 	xhrFields: {withCredentials: true}
     });
