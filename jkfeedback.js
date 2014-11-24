@@ -367,7 +367,6 @@ function student_position(s) {
 
 function explode(s) {
     $("#boardanim" + s).stop(true).remove();
-    console.log(s);
     var j = $("<div id='boardanim" + s + "' style='width:48px;height:48.75px;background-image:url(" + feedback_url + "explosion.png);background-size:1200px 48px;position:absolute;top:0;left:0'></div>");
     var x = 0;
     j.appendTo("#feedbackcontainer");
@@ -505,18 +504,18 @@ var feedback_shapes = (function () {
 })();
 
 function make_boardcolorre() {
-    var i, t = "(?:#[0-9a-f]{3}|#[0-9a-f]{6}";
+    var i, t = "^(?:#[0-9a-f]{3}|#[0-9a-f]{6}";
     for (i in $.Color.names)
         if (i != "_default")
             t += "|" + i;
-    return new RegExp(t + ")", "i");
+    return new RegExp(t + ")$", "i");
 }
 
 function feedback_style(s, sq, f, feedback_at, cutoff) {
     var m, a, b, i, shape, style = [];
 
     if (s && s.style) {
-        sq = sq || [cutoff, ""];
+        sq = sq || [feedback_at || 0, ""];
         if (sq[1].charAt(0) == "{" && (m = sq[1].match(/^\{\s*(.*?)\}(.*)$/)))
             sq[1] = "{" + s.style + " " + m[1] + "}" + m[2];
         else
@@ -702,8 +701,8 @@ function draw_board() {
             style = default_style;
         } else {
             t_hold = t_start + hold_duration;
-            style = feedback_style(s, sqs && sqs[0], f, t_start,
-                                   now - duration);
+            console.log([now - duration, t_end, (now - duration - t_end)]);
+            style = feedback_style(s, sqs && sqs[0], f, t_start, now - duration);
             if (now <= t_hold)
                 ctx.lineWidth = 3;
             else {
