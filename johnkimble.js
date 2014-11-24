@@ -136,7 +136,7 @@ function make_next_id() {
 
 // LOGGING AND RESPONSES
 
-function log_format(now) {
+function log_date_format(now) {
     var d = new Date(now), i, tzo = d.getTimezoneOffset(), atzo = Math.abs(tzo),
         x = [d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds(),
              Math.floor(atzo / 60), atzo % 60];
@@ -151,6 +151,19 @@ function log_format(now) {
     return i;
 }
 
+function log_access(u, req, path, res, data) {
+    access_log.write(util.format("%s %s - [%s] \"%s %s%s\" %d %s \"%s\"\n",
+                                 u.remoteAddress,
+                                 u.cookie ? u.cookie.id : "-",
+                                 log_date_format(u.now),
+                                 req.method,
+                                 path,
+                                 req.httpVersion ? " HTTP/" + req.httpVersion : "",
+                                 res.statusCode,
+                                 data ? data.length : "-",
+                                 req.headers["user-agent"] || ""));
+}
+
 function end_and_log(u, req, res, data) {
     var path = u.pathname, parts, t;
     if (server_config.access_log_query) {
@@ -163,12 +176,7 @@ function end_and_log(u, req, res, data) {
             path += "?" + parts.join("&");
     }
     res.end(data);
-    access_log.write(util.format("%s %s - [%s] \"%s %s HTTP/%s\" %d %s\n",
-                                 u.remoteAddress,
-                                 u.cookie ? u.cookie.id : "-",
-                                 log_format(u.now),
-                                 req.method, path, req.httpVersion,
-                                 res.statusCode, data.length));
+    log_access(u, req, path, res, data);
 }
 
 function json_response(u, req, res, j) {
@@ -385,7 +393,7 @@ Course.prototype.gc = function(now, force_slots) {
         ss.push(this.s[i]);
     if (ss.length != this.size)
         console.warn("[%s] %s.size == %d, contains %d",
-                     log_format(now), this.name, this.size, ss.length);
+                     log_date_format(now), this.name, this.size, ss.length);
     ss.sort(function (a, b) {
         if (!a.auth_at != !b.auth_at)
             return !!a.auth_at - !!b.auth_at;
@@ -1179,18 +1187,15 @@ function server(req, res) {
         }
     });
     s.listen(server_config.port, function () {
-        var now_s = log_format(get_now()), access_log_sep = "", stats;
+        var now = get_now(), access_log_sep = "", stats, server_path;
         if (server_config.opened_access_log
             && (stats = fs.statSync(server_config.access_log))
             && stats.isFile() && stats.size != 0)
             access_log_sep = "\n";
-        access_log.write(util.format("%s- - - [%s] \"START http://%s:%s/\" 0 0\n",
-                                     access_log_sep, now_s,
-                                     server_config.host || "localhost",
-                                     server_config.port));
-        console.warn("[%s] John Kimble server running at http://%s:%s/",
-                     now_s,
-                     server_config.host || "localhost",
-                     server_config.port);
+        server_path = "http://" + (server_config.host || "localhost") + ":" + server_config.port + "/";
+        log_access({remoteAddress: access_log_sep + "-", now: get_now()},
+                   {method: "START", headers: {}}, server_path, {statusCode: 0});
+        console.warn("[%s] John Kimble server running at %s",
+                     log_date_format(now), server_path);
     });
 })();
