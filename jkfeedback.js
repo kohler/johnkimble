@@ -326,7 +326,9 @@ function store_board(data) {
     clock_offset = data.now - (new Date).getTime();
 
     // remove old questions that don't have current students
-    var i, q, qs, x = {}, stati = boardstatus.s || {};
+    var i, q, qs, x, stati = boardstatus.s || {};
+
+    x = {};
     for (i in boardqs)
         if (!(i in stati) || stati[i].probation_until > data.now)
             x[i] = 1;
