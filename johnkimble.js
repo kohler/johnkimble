@@ -241,8 +241,6 @@ function Course(name) {
     this.pollers = {};
     this.next_poller = 1;
     this.npollers = 0;
-    this.host = server_config.host;
-    this.port = server_config.port;
     this.hmac_key = server_config.hmac_key + name;
     this.file_cache = {};
     this.panel_auth = {};
@@ -251,12 +249,18 @@ function Course(name) {
     for (i in course_config[name] || {})
         this[i] = course_config[name][i];
 
-    if (!this.url && this.host)
+    if (!this.url && server_config.url)
+        this.url = server_config.url;
+    else if (!this.url && server_config.host)
         this.url = (this.https ? "https://" : "http://") +
-            this.host +
-            (this.port == (this.https ? 443 : 80) ? "" : ":" + this.port);
+            server_config.host +
+            (server_config.port == (this.https ? 443 : 80) ? "" : ":" + server_config.port) +
+            (server_config.path || "");
     if (this.url && !this.url.match(/\/$/))
         this.url += "/";
+    this.urlpath = "/";
+    if ((i = this.url.match(/(?:\/\/[^\/]+)?(\/.*\/$)/)))
+        this.urlpath = i[1];
 
     if (typeof this.cookie_httponly === "undefined")
         this.cookie_httponly = true;
@@ -328,7 +332,7 @@ Course.prototype.set_cookie = function(s, req, res) {
     digest.update(s, "utf8");
     s += "&" + digest.digest("base64");
     (new cookies(req, res)).set("feedback61", s, {
-        path: "/" + this.name + "/",
+        path: this.urlpath + this.name + "/",
         httpOnly: this.cookie_httponly
     });
     return j;
