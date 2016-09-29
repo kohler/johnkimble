@@ -251,9 +251,9 @@ function Course(name) {
 
     if (!this.url && server_config.url)
         this.url = server_config.url;
-    else if (!this.url && server_config.host)
+    else if (!this.url)
         this.url = (this.https ? "https://" : "http://") +
-            server_config.host +
+            (server_config.host || "localhost") +
             (server_config.port == (this.https ? 443 : 80) ? "" : ":" + server_config.port) +
             (server_config.path || "");
     if (this.url && !this.url.match(/\/$/))
