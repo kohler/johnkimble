@@ -86,9 +86,10 @@ var feedback_files = {
     "jquery-1.12.3.min.map": "jquery-1.12.4.min.map",
     "jquery-1.12.4.min.js": "jquery-1.12.4.min.js",
     "jquery-1.12.4.min.map": "jquery-1.12.4.min.map",
-    "jquery.color-2.1.0.min.js": "jquery.color-2.1.2.min.js",
-    "jquery.color-2.1.1.min.js": "jquery.color-2.1.2.min.js",
-    "jquery.color-2.1.2.min.js": "jquery.color-2.1.2.min.js"
+    "jquery.color-2.1.0.min.js": "jquery.color.plus-names-2.1.2.min.js",
+    "jquery.color-2.1.1.min.js": "jquery.color.plus-names-2.1.2.min.js",
+    "jquery.color-2.1.2.min.js": "jquery.color.plus-names-2.1.2.min.js",
+    "jquery.color.plus-names-2.1.2.min.js": "jquery.color.plus-names-2.1.2.min.js"
 };
 var file_cache = {
 };

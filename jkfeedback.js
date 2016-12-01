@@ -14,8 +14,10 @@ var boardstatus = {}, boardsizes = {},
 var compact_window = !!window.location.search.match(/[?&]neww=1/);
 var colorset_defs = {
     pulse: $.Color("#ffff00"),
-    "default": {off: $.Color("#ffffff"), offborder: $.Color("#778ee9"),
-        on: $.Color("#ffffff"), onborder: $.Color("#778ee9")},
+    "default": {
+        off: $.Color("#ffffff"), offborder: $.Color("#778ee9"),
+        on: $.Color("#ffffff"), onborder: $.Color("#778ee9")
+    },
     "0": {off: $.Color("#f0e5d3"), on: $.Color("#ded4c3")},
     ok: {off: $.Color("#f0e5d3"), on: $.Color("#00ed2d"),
          onborder: $.Color("#008800")},
@@ -414,6 +416,12 @@ var feedback_shapes = (function () {
         };
     }
 
+    function make_circle(rfrac) {
+	return function (ctx, x, y, r, min_r) {
+	    ctx.arc(x, y, Math.max(min_r, r * rfrac), 0, 7);
+	};
+    }
+
     function make_polygon(dr, start, n) {
         return function (ctx, x, y, r, min_r) {
             var p = pen(ctx, x, y, r, min_r), i, d = 2*pi / n;
@@ -478,11 +486,15 @@ var feedback_shapes = (function () {
     }
 
     return {
-        circle: null,
+        circle: make_circle(1),
+        large: make_circle(1),
+        small: make_circle(0.5),
+        smallcircle: make_circle(0.5),
         square: make_polygon(sqrt(pi/2), pi/4, 4),
         diamond: make_polygon(sqrt(pi/2), 0, 4),
         octagon: make_polygon(sqrt(pi/(4*Math.SQRT1_2)), pi/8, 8),
         star: make_star([1.2, 0.6], pi/2, 5),
+        "small star": make_star([0.6, 0.3], pi/2, 5),
         star7: make_star([1.2, 0.7], -pi/2, 7),
         seal: make_star([1.1, 0.9], -pi/2, 18),
         triangle: make_polygon(sqrt(pi/2), pi/2, 3),
