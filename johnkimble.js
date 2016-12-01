@@ -261,7 +261,8 @@ function Course(name) {
     if (this.url && !this.url.match(/\/$/))
         this.url += "/";
     this.urlpath = "/";
-    if ((i = this.url.match(/(?:\/\/[^\/]+)?(\/.*\/$)/)))
+    if ((i = this.url.match(/^(?:(?:https?:)?\/\/[^\/]+)(\/.*\/$)/))
+        || (i = this.url.match(/^(\/.*\/)$/)))
         this.urlpath = i[1];
 
     if (typeof this.cookie_httponly === "undefined")

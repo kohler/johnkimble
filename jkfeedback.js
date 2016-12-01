@@ -12,9 +12,10 @@ var boardstatus = {}, boardsizes = {},
     boardqs = {}, boardinfo = {anim: {}}, boardcolorre = null,
     board_outstanding = false, board_backoff = 0, board_backoffuntil = 0;
 var compact_window = !!window.location.search.match(/[?&]neww=1/);
-var colors = {
+var colorset_defs = {
     pulse: $.Color("#ffff00"),
-    board0: {off: $.Color("#ffffff"), offborder: $.Color("#778ee9")},
+    "default": {off: $.Color("#ffffff"), offborder: $.Color("#778ee9"),
+        on: $.Color("#ffffff"), onborder: $.Color("#778ee9")},
     "0": {off: $.Color("#f0e5d3"), on: $.Color("#ded4c3")},
     ok: {off: $.Color("#f0e5d3"), on: $.Color("#00ed2d"),
          onborder: $.Color("#008800")},
@@ -23,7 +24,7 @@ var colors = {
     ask: {off: $.Color("#f0e5d3"), on: $.Color("#86bbee"),
           onborder: $.Color("#778ee9"), inset: $.Color("#2089ee").alpha(0.7)}
 };
-var default_style = [colors.board0.off, colors.board0.offborder];
+var default_style = [colorset_defs["default"].off, colorset_defs["default"].offborder];
 $.Color.names.orange = "#FFA500";
 $.Color.names.pink = "#FF69B4"; // actually "HotPink"
 
@@ -108,13 +109,13 @@ function draw_status() {
                 t_pulse = t_start + pulse_duration,
                 t_hold = t_start + status.hold_duration,
                 t_end = t_start + status.duration;
-            var c = status_animator.color_transition(t_start, colors.pulse,
-                                                     t_pulse, colors[s].on,
-                                                     t_hold, colors[s].on,
-                                                     t_end, colors[s].off);
+            var c = status_animator.color_transition(t_start, colorset_defs.pulse,
+                                                     t_pulse, colorset_defs[s].on,
+                                                     t_hold, colorset_defs[s].on,
+                                                     t_end, colorset_defs[s].off);
             e.css("backgroundColor", c);
         } else if (status.lease)
-            e.css("backgroundColor", colors[s].off);
+            e.css("backgroundColor", colorset_defs[s].off);
         else
             e.css("backgroundColor", "");
     }
@@ -511,47 +512,110 @@ function make_boardcolorre() {
     return new RegExp(t + ")$", "i");
 }
 
-function feedback_style(s, sq, f, feedback_at, cutoff) {
-    var m, a, b, i, shape, style = [];
+function sq_split(sq, filter) {
+    var p;
+    if (sq && sq[1] && sq[1].charAt(0) == "{" && (p = sq[1].indexOf("}")) > 0) {
+        sq = [sq[1].substr(1, p - 1), sq[1].substr(p + 1)];
+        if (filter) {
+            boardcolorre = boardcolorre || make_boardcolorre();
+            var words = sq[0].split(/[\s,+]+/), rest = [];
+            for (var i = 0; i < words.length; ++i) {
+                var word = words[i];
+                if (!boardcolorre.test(word)
+                    && !(word in feedback_shapes)
+                    && !(word in colorset_defs)
+                    && word !== "style" && word !== "")
+                    rest.push(word);
+            }
+            if (rest.length)
+                sq[1] = "{" + rest.join(" ") + "}" + sq[1];
+        }
+        return sq;
+    } else if (sq && sq[1])
+        return ["", sq[1]];
+    else
+        return ["", ""];
+}
 
-    if (s && s.style) {
-        sq = sq || [feedback_at || 0, ""];
-        if (sq[1].charAt(0) == "{" && (m = sq[1].match(/^\{\s*(.*?)\}(.*)$/)))
-            sq[1] = "{" + s.style + " " + m[1] + "}" + m[2];
-        else
-            sq[1] = "{" + s.style + "}" + sq[1];
+function feedback_style(stext, sq, f) {
+    boardcolorre = boardcolorre || make_boardcolorre();
+    var colors = [], shapes = [], colorsets = [];
+
+    function check_words(words) {
+        words = words.split(/[\s,+]+/);
+        var any_unknown = false;
+        for (var word of words) {
+            var important = word.charAt(0) === "!";
+            var set;
+            if (important)
+                word = word.substr(1);
+            if (boardcolorre.test(word))
+                set = colors;
+            else if (word in feedback_shapes)
+                set = shapes;
+            else if (word in colorset_defs)
+                set = colorsets;
+            else {
+                if (word !== "" && word !== "style")
+                    any_unknown = true;
+                continue;
+            }
+            if (important && !set.important) {
+                set.length = 0;
+                set.important = true;
+            }
+            if (important || !set.important)
+                set.push(word);
+        }
+        return any_unknown;
     }
 
-    if (sq && sq[0] >= (cutoff || 0) && sq[1].charAt(0) == "{"
-        && (m = sq[1].match(/^\{(.*?)\}(.*)$/))) {
-        a = m[1].split(/[\s,]+/);
-        b = [];
-        boardcolorre = boardcolorre || make_boardcolorre();
+    if (stext)
+        check_words(stext);
+    if (sq) {
+        sq = sq_split(sq);
+        if (sq[0] && check_words(sq[0]))
+            sq[1] = true;
+    }
+    if (f)
+        check_words(f);
 
-        for (i = 0; i < a.length; ++i)
-            if (boardcolorre.test(a[i])) {
-                if (sq[0] >= (feedback_at || 0)) {
-                    style[0] = new $.Color(a[i]);
-                    style[1] = style[0].transition($.Color("black"), 0.2);
-                }
-            } else if (a[i] in feedback_shapes)
-                style[2] = feedback_shapes[a[i]];
-            else if (a[i] != "style")
-                b.push(a[i]);
+    var style = [];
+    if (colors.length) {
+        style[0] = new $.Color(colors[0]);
+        for (i = 1; i < colors.length; ++i)
+            style[0] = style[0].transition($.Color(colors[i]), 1 / (i+1));
+        style[1] = style[0].transition($.Color("black"), 0.2);
+    } else {
+        var i = colorsets.length ? colorsets[colorsets.length - 1] : 0;
+        if (!i || !colorset_defs[i])
+            i = shapes.length ? "default" : "0";
+        style[0] = colorset_defs[i].on;
+        style[1] = colorset_defs[i].onborder || style[0];
+    }
 
-        if (b.length)
-            style[3] = "{" + b.join(" ") + "}" + m[2];
-        else
-            style[3] = m[2];
-    } else if (sq)
-        style[3] = sq[1];
+    var want_shape;
+    if (shapes.length > 1) {
+        want_shape = shapes[shapes.length - 1];
+        shapes.sort();
+        var delta;
+        for (i = 1, delta = 0; i < shapes.length; ++i)
+            if (shapes[i] === shapes[i - 1])
+                ++delta;
+            else if (delta)
+                shapes[i - delta] = shapes[i];
+        if (delta)
+            shapes.length = shapes.length - delta;
+        i = shapes.join(" ");
+        if (i in feedback_shapes)
+            want_shape = i;
+    } else
+        want_shape = shapes[0];
+    if (want_shape)
+        style[2] = feedback_shapes[want_shape];
 
-    if (!f || !colors[f])
-        f = "0";
-    if (!style[0])
-        style[0] = colors[f].on;
-    if (!style[1])
-        style[1] = colors[f].onborder || style[0];
+    if (sq && sq[1])
+        style[3] = true;
     return style;
 }
 
@@ -688,29 +752,30 @@ function draw_board() {
     // fills and strokes
     for (i in boardstatus.s) {
         s = boardstatus.s[i];
+        sqs = boardqs[i];
         f = s.feedback || "0";
         t_start = s.feedback_at || 0;
-        if ((sqs = boardqs[i]) && sqs[0][0] > t_start && sqs[0][1]) {
+        if (sqs && sqs[0][0] > t_start && sqs[0][1]) {
             t_start = sqs[0][0];
             f = "ask";
         }
         t_end = t_start + duration;
 
-        if ((f == "0" || now >= t_end) && !s.style) {
+        if ((f == "0" && !s.style) || now >= t_end) {
             ctx.lineWidth = 0.5;
             style = default_style;
         } else {
             t_hold = t_start + hold_duration;
-            style = feedback_style(s, sqs && sqs[0], f, t_start, now - duration);
+            style = feedback_style(s && s.style, sqs && sqs[0], f);
             if (now <= t_hold)
                 ctx.lineWidth = 3;
             else {
                 x = swing((now - t_hold) / (t_end - t_hold));
                 ctx.lineWidth = 3 - 2.5 * x;
-                style[1] = style[1].transition(colors.board0.offborder, x);
+                style[1] = style[1].transition(default_style[1], x);
             }
             style[0] = board_animator.color_transition(t_hold, style[0],
-                                                       t_end, colors.board0.off);
+                                                       t_end, default_style[0]);
         }
 
         if (overlap[i]) {
@@ -733,7 +798,7 @@ function draw_board() {
         if (style[3] && sqs[0][0] > now - duration && f != "ask") {
             ctx.beginPath();
             ctx.arc(x, y, boardsizes[i].r / 2, 0, 7);
-            ctx.fillStyle = colors.ask.inset.toRgbaString();
+            ctx.fillStyle = colorset_defs.ask.inset.toRgbaString();
             ctx.fill();
         }
     }
@@ -813,17 +878,15 @@ function hover_board(e) {
     var b = boardqs[hs.i];
     var s = boardstatus.s[hs.i];
     var t, i, j;
-    for (i = j = 0; j < 3 && i < b.length; ++i) {
-        x = feedback_style(s, b[i]);
-        if (!x[3])
-            continue;
-        if (!t) {
-            t = $("<div class='showquestion' style='position:absolute;visibility:hidden;top:0;left:0'></div>");
-            t.append("<div class='qtail0'></div>");
+    for (i = j = 0; j < 3 && i < b.length; ++i)
+        if ((x = sq_split(b[i], true)[1])) {
+            if (!t) {
+                t = $("<div class='showquestion' style='position:absolute;visibility:hidden;top:0;left:0'></div>");
+                t.append("<div class='qtail0'></div>");
+            }
+            t.append($("<div class='q q" + j + "'></div>").text(x));
+            ++j;
         }
-        t.append($("<div class='q q" + j + "'></div>").text(x[3]));
-        ++j;
-    }
     if (!t)
         return;
     t.append("<div class='qtail1'></div>");
