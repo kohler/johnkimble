@@ -701,7 +701,6 @@ function draw_board() {
             style = default_style;
         } else {
             t_hold = t_start + hold_duration;
-            console.log([now - duration, t_end, (now - duration - t_end)]);
             style = feedback_style(s, sqs && sqs[0], f, t_start, now - duration);
             if (now <= t_hold)
                 ctx.lineWidth = 3;
