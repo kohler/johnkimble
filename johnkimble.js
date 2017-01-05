@@ -254,16 +254,16 @@ function Course(name) {
 
     if (!this.url && server_config.url)
         this.url = server_config.url;
-    else if (!this.url)
-        this.url = (this.https ? "https://" : "http://") +
-            (server_config.host || "localhost") +
-            (server_config.port == (this.https ? 443 : 80) ? "" : ":" + server_config.port) +
-            (server_config.path || "");
+    else if (!this.url && this.host)
+        this.url = (this.https ? "https://" : "http://") + this.host +
+            (this.port == (this.https ? 443 : 80) ? "" : ":" + this.port) +
+            (this.path || "");
     if (this.url && !this.url.match(/\/$/))
         this.url += "/";
     this.urlpath = "/";
-    if ((i = this.url.match(/^(?:(?:https?:)?\/\/[^\/]+)(\/.*\/$)/))
-        || (i = this.url.match(/^(\/.*\/)$/)))
+    if (this.url
+        && ((i = this.url.match(/^(?:(?:https?:)?\/\/[^\/]+)(\/.*\/$)/))
+            || (i = this.url.match(/^(\/.*\/)$/))))
         this.urlpath = i[1];
 
     if (typeof this.cookie_httponly === "undefined")
